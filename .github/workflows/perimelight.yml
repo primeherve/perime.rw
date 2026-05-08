@@ -35,7 +35,7 @@ jobs:
         run: |
           node - <<'NODE'
           const fs=require('fs'),path=require('path'),os=require('os'),{execSync}=require('child_process'),sharp=require('sharp');
-          const OUT='perimerw/output',TMP='perimerw/temp',MUSIC='perimerw/song';
+          const OUT='perimelight/output',TMP='perimelight/temp',MUSIC='perimelight/song';
           [OUT,TMP].forEach(d=>fs.mkdirSync(d,{recursive:true}));
 
           const q={id:process.env.INPUT_X||'1',text:process.env.INPUT_Q||'',opts:{a:process.env.INPUT_A,b:process.env.INPUT_B,c:process.env.INPUT_C,d:process.env.INPUT_D}};
@@ -780,5 +780,5 @@ jobs:
         run: |
           git config user.name "GitHub Actions"
           git config user.email "actions@github.com"
-          git add perime/output/
+          git add perimelight/output/
           git diff --staged --quiet || (git commit -m "Add premium quiz video" && git push)
