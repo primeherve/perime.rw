@@ -1,4 +1,5 @@
 name: Generate Quiz Video
+
 on:
   workflow_dispatch:
     inputs:
@@ -21,9 +22,9 @@ jobs:
 
       - name: Install FFmpeg and Sharp
         run: |
-          sudo apt-get update -y
-          sudo apt-get install -y ffmpeg
-          npm install sharp
+          sudo apt-get update -qq
+          sudo apt-get install -y --no-install-recommends ffmpeg fonts-dejavu-core
+          npm install sharp --no-fund --no-audit --loglevel=error
 
       - name: Generate video
         env:
@@ -34,16 +35,16 @@ jobs:
           INPUT_D: ${{ github.event.inputs.d }}
           INPUT_X: ${{ github.event.inputs.x }}
         run: |
-          node - <<'NODESCRIPT'
+          node --input-type=commonjs - <<'NODESCRIPT'
           const fs = require('fs'),
                 path = require('path'),
-                os = require('os'),
                 { execSync } = require('child_process'),
                 sharp = require('sharp');
 
-          const OUT = 'perimelight/output';
-          const TMP = 'perimelight/temp';
+          const OUT   = 'perimelight/output';
+          const TMP   = 'perimelight/temp';
           const MUSIC = 'perimelight/song';
+          const SIGNS = 'perimelight/signs';
           [OUT, TMP].forEach(d => fs.mkdirSync(d, { recursive: true }));
 
           const q = {
@@ -58,12 +59,40 @@ jobs:
           };
           const num = parseInt(q.id) || 1;
 
+          // ---------- image detection ----------
+          let hasImage = /\[image\]/i.test(q.text);
+          if (hasImage) q.text = q.text.replace(/\[image\]/i, '').trim();
+
+          const exts = ['.jpg', '.jpeg', '.png', '.webp'];
+          let signPath = null;
+          for (const e of exts) {
+            const p = path.join(SIGNS, `${num}${e}`);
+            if (fs.existsSync(p)) { signPath = p; break; }
+          }
+
+          let imageBuf = null, imageW = 0, imageH = 0;
+          if (hasImage && signPath) {
+            try {
+              imageBuf = await sharp(signPath)
+                .resize(540, 320, { fit: 'inside', withoutEnlargement: true })
+                .png()
+                .toBuffer();
+              const meta = await sharp(imageBuf).metadata();
+              imageW = meta.width;
+              imageH = meta.height;
+            } catch (e) {
+              console.log('[IMAGE] Failed to load:', e.message);
+              imageBuf = null;
+            }
+          }
+          const imageHeight = imageBuf ? imageH + 24 : 0;
+          const imageTopInCard = 90 + 24; // will be updated after layout
+
           // ---------- helpers ----------
           const escXml  = s => String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
           const escTS   = s => String(s).replace(/`/g, '\\`').replace(/\$\{/g, '\\${');
           const esc     = s => escTS(escXml(s));
 
-          // Lighten a hex colour by mixing with white
           function lightenColor(hex, factor = 0.8) {
             const r = parseInt(hex.slice(1,3),16),
                   g = parseInt(hex.slice(3,5),16),
@@ -87,21 +116,19 @@ jobs:
           ];
 
           const style = STYLES[Math.floor(Math.random() * STYLES.length)];
-          // Force light theme for all SVGs
-          style.dark = false;
+          style.dark = false; // force light theme
 
           const pillR  = 18 + Math.floor(Math.random() * 10);
           const cardR  = 32 + Math.floor(Math.random() * 12);
           const shadow = 18 + Math.floor(Math.random() * 10);
 
-          // Harmonised colours – never pure white unless forced
-          const textColor   = '#0F172A';                     // dark text on light cards
+          const textColor   = '#0F172A';
           const cardFill    = style.card;
-          const optionBg    = lightenColor(style.card, 0.8); // tinted, not white
+          const optionBg    = lightenColor(style.card, 0.8);
           const cardStroke  = 'rgba(15,23,42,0.09)';
           const optionStroke = 'rgba(15,23,42,0.12)';
 
-          // ---------- adaptive text layout ----------
+          // ---------- text wrapping ----------
           function estimateWidth(t, fs) { return t.length * fs * 0.56; }
           function wrapText(text, maxW, fs) {
             const words = String(text).trim().split(/\s+/);
@@ -124,6 +151,7 @@ jobs:
             return lines;
           }
 
+          // ---------- layout (image aware) ----------
           function buildLayout() {
             const opts = ['a','b','c','d'].filter(k => q.opts[k]).map(k => {
               let t = String(q.opts[k]).replace(/^[A-D][\)\.\-:]?\s*/i, '').trim();
@@ -141,9 +169,10 @@ jobs:
                 const ph = Math.max(72, ls.length * lh + 34);
                 return { ...o, lines: ls, lh, pillH: ph };
               });
-              const th = 90 + qH + 30 + od.reduce((s, o) => s + o.pillH, 0) + Math.max(0, od.length - 1) * 16 + 56;
-              if (th <= 1180 && qL.length <= 12 && od.every(o => o.lines.length <= 8)) 
-                return { qF, oF, qL, qH, od, th };
+              const gap = 90 + qH + (imageBuf ? imageHeight + 24 : 30);
+              const th = gap + od.reduce((s, o) => s + o.pillH, 0) + Math.max(0, od.length - 1) * 16 + 56;
+              if (th <= 1180 && qL.length <= 12 && od.every(o => o.lines.length <= 8))
+                return { qF, oF, qL, qH, od, th, optStartY: gap };
               if (qH > 400 || qL.length > 7) qF = Math.max(20, qF - 1);
               else oF = Math.max(17, oF - 1);
             }
@@ -154,12 +183,16 @@ jobs:
               const lh = 17 * 1.26;
               return { ...o, lines: ls, lh, pillH: Math.max(72, ls.length * lh + 34) };
             });
-            const th = 90 + qH + 30 + od.reduce((s, o) => s + o.pillH, 0) + Math.max(0, od.length - 1) * 16 + 56;
-            return { qF: 20, oF: 17, qL, qH, od, th: Math.min(th, 1200) };
+            const gap = 90 + qH + (imageBuf ? imageHeight + 24 : 30);
+            const th = Math.min(1200, gap + od.reduce((s, o) => s + o.pillH, 0) + Math.max(0, od.length - 1) * 16 + 56);
+            return { qF: 20, oF: 17, qL, qH, od, optStartY: gap, th };
           }
 
           const L = buildLayout();
-          const top = Math.max(20, (1280 - L.th) / 2 - 20);
+          const top = Math.max(20, Math.round((1280 - L.th) / 2 - 20));
+
+          // image top position inside the card (relative)
+          const imgTopInCard = 90 + L.qH + 24;
 
           // ---------- road decoration ----------
           const icons = [
@@ -170,16 +203,185 @@ jobs:
           ];
           const roadDecor = icons.sort(() => 0.5 - Math.random()).slice(0, 2).join('');
 
-          // ---------- SVG THEMES (all forced light) ----------
+          // ---------- SVG THEMES (all light, using L.optStartY) ----------
           const THEMES = [
-           // 1: ORIGINAL NEON/GRID STYLE (overflow fixed, single line)
-               ()=>{return `<svg width="720" height="1280" xmlns="http://www.w3.org/2000/svg"><defs><linearGradient id="qG" x1="0" y1="0" x2="1" y2="1"><stop offset="0%" stop-color="${style.g1}"/><stop offset="100%" stop-color="${style.g2}"/></linearGradient><linearGradient id="optG" x1="0" y1="0" x2="1" y2="0"><stop offset="0%" stop-color="rgba(255,255,255,0.15)"/><stop offset="100%" stop-color="rgba(255,255,255,0)"/></linearGradient><filter id="neon"><feGaussianBlur stdDeviation="4" result="b"/><feMerge><feMergeNode in="b"/><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge></filter><filter id="s"><feDropShadow dx="0" dy="15" stdDeviation="${shadow}" flood-opacity="0.5" flood-color="#000"/></filter><pattern id="grid" width="30" height="30" patternUnits="userSpaceOnUse"><path d="M 30 0 L 0 0 0 30" fill="none" stroke="${style.g1}" stroke-opacity="0.07" stroke-width="1"/></pattern><filter id="glow"><feGaussianBlur stdDeviation="8" result="b"/><feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge></filter><clipPath id="cardClip"><path d="M 0 20 L 20 0 L 630 0 L 650 20 L 650 ${L.th-20} L 630 ${L.th} L 20 ${L.th} L 0 ${L.th-20} Z"/></clipPath></defs><g opacity="0.15">${roadDecor}</g><rect width="720" height="1280" fill="url(#grid)"/><g transform="translate(35,${top})" clip-path="url(#cardClip)"><path d="M 0 20 L 20 0 L 630 0 L 650 20 L 650 ${L.th-20} L 630 ${L.th} L 20 ${L.th} L 0 ${L.th-20} Z" fill="${cardFill}" stroke="url(#qG)" stroke-width="2.5" filter="url(#s)"/><path d="M 0 20 L 20 0 L 630 0 L 650 20 L 650 ${L.th-20} L 630 ${L.th} L 20 ${L.th} L 0 ${L.th-20} Z" fill="none" stroke="url(#qG)" stroke-width="2.5" filter="url(#neon)"/><path d="M 15 10 L 40 10 M 635 10 L 610 10 M 15 ${L.th-10} L 40 ${L.th-10} M 635 ${L.th-10} L 610 ${L.th-10}" stroke="${style.opts[0]||'#0ff'}" stroke-width="3" filter="url(#neon)"/><path d="M 20 -40 L 200 -40 L 220 -20 L 220 0 L 20 0 Z" fill="url(#qG)" opacity="0.95" filter="url(#neon)"/><text x="120" y="-12" font-family="Orbitron, sans-serif" font-size="28" font-weight="900" fill="#ffffff" text-anchor="middle" letter-spacing="2">Q - ${esc(num)}</text>${L.qL.map((l,i)=>`<text x="50" y="${70+i*L.qF*1.4}" font-family="Orbitron, sans-serif" font-size="${L.qF}" font-weight="800" fill="${textColor}">${esc(l)}</text>`).join('')}${(() => {let y=70+L.qH+35, s=''; L.od.forEach((o,i)=>{const col=style.opts[i%4]; s+=`<g transform="translate(40,${y})"><path d="M 15 0 L 555 0 L 570 15 L 570 ${o.pillH} L 15 ${o.pillH} L 0 ${o.pillH-15} Z" fill="${optionBg}" stroke="${col}" stroke-width="1.5"/><path d="M 15 0 L 555 0 L 570 15 L 570 ${o.pillH} L 15 ${o.pillH} L 0 ${o.pillH-15} Z" fill="url(#optG)" opacity="0.8"/><polygon points="0,${o.pillH-15} 15,${o.pillH} 45,${o.pillH} 30,${o.pillH-15}" fill="${col}" opacity="0.3"/><rect x="-5" y="${o.pillH/2-10}" width="5" height="20" fill="${col}" filter="url(#neon)"/><circle cx="45" cy="${o.pillH/2}" r="18" fill="none" stroke="${col}" stroke-width="2.5" filter="url(#neon)"/><text x="45" y="${o.pillH/2+6}" font-family="Orbitron, sans-serif" font-size="16" font-weight="900" fill="${col}" text-anchor="middle">${o.k}</text>`;const tb=o.lines.length*o.lh,fb=(o.pillH-tb)/2+o.lh*0.75;o.lines.forEach((ln,li)=>s+=`<text x="85" y="${fb+li*o.lh}" font-family="Orbitron, sans-serif" font-size="${L.oF}" font-weight="600" fill="${textColor}">${esc(ln)}</text>`);s+=`</g>`;y+=o.pillH+18}); return s;})()}<g transform="translate(665, 40)"><polygon points="0,0 8,0 8,25 0,30" fill="${style.opts[0]}" filter="url(#neon)"/><polygon points="0,40 6,40 6,55 0,60" fill="${style.opts[1]}" opacity="0.8"/><polygon points="0,70 4,70 4,110 0,115" fill="${style.opts[2]}" opacity="0.4"/></g></g></svg>`;}
-            
+            // 2: ULTRA PREMIUM (tested ultra)
+            () => {
+              return `<svg width="720" height="1280" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 720 1280">
+                <defs>
+                  <linearGradient id="g" x1="0" y1="0" x2="1" y2="1">
+                    <stop offset="0%" stop-color="${style.g1}"/>
+                    <stop offset="100%" stop-color="${style.g2}"/>
+                  </linearGradient>
+                  <linearGradient id="gSoft" x1="0" y1="0" x2="0" y2="1">
+                    <stop offset="0%" stop-color="${style.g1}" stop-opacity="0.22"/>
+                    <stop offset="100%" stop-color="${style.g2}" stop-opacity="0.06"/>
+                  </linearGradient>
+                  <linearGradient id="sheen" x1="0" y1="0" x2="0" y2="1">
+                    <stop offset="0%" stop-color="white" stop-opacity="0.85"/>
+                    <stop offset="38%" stop-color="white" stop-opacity="0.06"/>
+                    <stop offset="100%" stop-color="white" stop-opacity="0"/>
+                  </linearGradient>
+                  <filter id="s" x="-20%" y="-20%" width="140%" height="140%">
+                    <feDropShadow dx="0" dy="32" stdDeviation="${shadow+6}" flood-opacity="0.2"/>
+                    <feDropShadow dx="0" dy="8" stdDeviation="6" flood-opacity="0.08"/>
+                  </filter>
+                  <filter id="glow">
+                    <feGaussianBlur stdDeviation="14" result="b"/>
+                    <feMerge>
+                      <feMergeNode in="b"/>
+                      <feMergeNode in="SourceGraphic"/>
+                    </feMerge>
+                  </filter>
+                  <filter id="textDepth" x="-20%" y="-20%" width="140%" height="140%">
+                    <feDropShadow dx="0" dy="3" stdDeviation="3" flood-opacity="0.25"/>
+                  </filter>
+                  <linearGradient id="badgeHL" x1="0%" y1="0%" x2="100%" y2="120%">
+                    <stop offset="0%" stop-color="white" stop-opacity="0.48"/>
+                    <stop offset="100%" stop-color="white" stop-opacity="0"/>
+                  </linearGradient>
+                </defs>
+                <g opacity="0.1">${roadDecor}</g>
+                <g transform="translate(35,${top})">
+                  <rect width="650" height="${L.th}" rx="${cardR+12}" fill="none" stroke="url(#g)" stroke-width="2.5" opacity="0.4" filter="url(#glow)"/>
+                  <rect width="650" height="${L.th}" rx="${cardR+10}" fill="${cardFill}" stroke="${cardStroke}" stroke-width="2.2" filter="url(#s)"/>
+                  <rect x="5" y="5" width="640" height="${L.th-10}" rx="${cardR+6}" fill="${cardFill}"/>
+                  <rect x="5" y="5" width="640" height="${Math.min(285, L.th*0.53)}" rx="${cardR+6}" fill="url(#sheen)"/>
+                  <rect x="6" y="6" width="638" height="${L.th-12}" rx="${cardR+5}" fill="url(#gSoft)" opacity="0.5"/>
+                  <rect x="10" y="10" width="630" height="${L.th-20}" rx="${cardR+2}" fill="none" stroke="#0F172A" stroke-opacity="0.12" stroke-width="1.8"/>
+                  <g transform="translate(36,-36)" filter="url(#s)">
+                    <rect width="196" height="76" rx="26" fill="url(#g)"/>
+                    <rect x="3" y="3" width="190" height="70" rx="23" fill="#FFFFFF" fill-opacity="0.2"/>
+                    <rect x="4" y="4" width="188" height="68" rx="22" fill="url(#g)"/>
+                    <rect x="8" y="8" width="180" height="60" rx="18" fill="url(#g)"/>
+                    <rect x="8" y="8" width="180" height="60" rx="18" fill="url(#badgeHL)" opacity="0.75"/>
+                    <text x="98" y="47" font-family="Inter,Arial" font-size="29" font-weight="800" fill="white" text-anchor="middle" letter-spacing="2.5" filter="url(#textDepth)">Q${esc(num)}</text>
+                  </g>
+                  ${L.qL.map((l,i)=>`<text x="48" y="${90+i*L.qF*1.35}" font-family="Inter,Arial" font-size="${L.qF}" font-weight="750" fill="${textColor}" letter-spacing="-0.18" filter="url(#textDepth)">${esc(l)}</text>`).join('')}
+                  ${(() => {
+                    let y = L.optStartY, s = '';
+                    L.od.forEach((o,i) => {
+                      const col = style.opts[i%4];
+                      s += `<g>
+                        <rect x="40" y="${y}" width="570" height="${o.pillH}" rx="${pillR+4}" fill="${optionBg}" stroke="${optionStroke}" stroke-width="2"/>
+                        <rect x="40" y="${y}" width="570" height="${o.pillH}" rx="${pillR+4}" fill="url(#gSoft)" opacity="0.18"/>
+                        <rect x="40" y="${y}" width="10" height="${o.pillH}" rx="5" fill="${col}"/>
+                        <rect x="40" y="${y}" width="4" height="${o.pillH}" rx="2" fill="white" opacity="0.4"/>
+                        <circle cx="78" cy="${y+o.pillH/2}" r="28" fill="#fff" opacity="0.12"/>
+                        <circle cx="78" cy="${y+o.pillH/2}" r="25" fill="${col}" opacity="0.22" filter="url(#glow)"/>
+                        <circle cx="78" cy="${y+o.pillH/2}" r="20" fill="${col}"/>
+                        <text x="78" y="${y+o.pillH/2+7.5}" font-family="Inter,Arial" font-size="20" font-weight="800" fill="white" text-anchor="middle" filter="url(#textDepth)">${o.k}</text>`;
+                      const tb = o.lines.length * o.lh,
+                            fb = y + (o.pillH - tb) / 2 + o.lh * 0.76;
+                      o.lines.forEach((ln, li) =>
+                        s += `<text x="122" y="${fb + li * o.lh}" font-family="Inter,Arial" font-size="${L.oF}" fill="${textColor}" opacity="0.97" filter="url(#textDepth)">${esc(ln)}</text>`
+                      );
+                      s += `</g>`;
+                      y += o.pillH + 16;
+                    });
+                    return s;
+                  })()}
+                  <rect x="44" y="${L.th-16}" width="562" height="9" rx="4.5" fill="url(#g)" opacity="0.92"/>
+                  <rect x="46" y="${L.th-14}" width="558" height="2.5" rx="1.25" fill="white" opacity="0.7"/>
+                </g>
+              </svg>`;
+            },
 
-           
+            // 4: BOLD CONTRAST (tested ultrabox)
+            () => {
+              return `<svg width="720" height="1280" xmlns="http://www.w3.org/2000/svg">
+                <defs>
+                  <linearGradient id="g" x1="0" y1="0" x2="1" y2="1">
+                    <stop offset="0%" stop-color="${style.g1}"/>
+                    <stop offset="100%" stop-color="${style.g2}"/>
+                  </linearGradient>
+                  <filter id="s">
+                    <feDropShadow dx="0" dy="24" stdDeviation="${shadow}" flood-opacity="0.35"/>
+                  </filter>
+                  <pattern id="stripes" width="12" height="12" patternTransform="rotate(45)" patternUnits="userSpaceOnUse">
+                    <rect width="12" height="12" fill="none"/>
+                    <line x1="0" y1="0" x2="0" y2="12" stroke="#000000" stroke-width="2.5" stroke-opacity="0.08"/>
+                  </pattern>
+                </defs>
+                <g opacity="0.15">${roadDecor}</g>
+                <g transform="translate(35,${top})">
+                  <rect width="650" height="${L.th}" rx="${cardR}" fill="${cardFill}" filter="url(#s)"/>
+                  <rect width="650" height="${L.th}" rx="${cardR}" fill="url(#stripes)"/>
+                  <rect x="40" y="-28" width="160" height="56" rx="10" fill="url(#g)" stroke="${textColor}" stroke-width="3"/>
+                  <text x="120" y="10" font-family="Arial" font-size="27" font-weight="800" fill="white" text-anchor="middle">Q${esc(num)}</text>
+                  ${L.qL.map((l,i)=>`<text x="48" y="${90+i*L.qF*1.35}" font-family="Arial" font-size="${L.qF}" font-weight="700" fill="${textColor}">${esc(l)}</text>`).join('')}
+                  ${(() => {
+                    let y = L.optStartY, s = '';
+                    L.od.forEach((o,i) => {
+                      const col = style.opts[i%4];
+                      s += `<g>
+                        <rect x="40" y="${y}" width="570" height="${o.pillH}" rx="0" fill="#F1F5F9" stroke="${col}" stroke-width="3.5"/>
+                        <rect x="40" y="${y}" width="16" height="${o.pillH}" fill="${col}"/>
+                        <circle cx="78" cy="${y+o.pillH/2}" r="23" fill="${col}"/>
+                        <text x="78" y="${y+o.pillH/2+7}" font-family="Arial" font-size="20" font-weight="800" fill="white" text-anchor="middle">${o.k}</text>`;
+                      const tb = o.lines.length * o.lh,
+                            fb = y + (o.pillH - tb) / 2 + o.lh * 0.75;
+                      o.lines.forEach((ln, li) =>
+                        s += `<text x="120" y="${fb + li * o.lh}" font-family="Arial" font-size="${L.oF}" fill="${textColor}" font-weight="600">${esc(ln)}</text>`
+                      );
+                      s += `</g>`;
+                      y += o.pillH + 16;
+                    });
+                    return s;
+                  })()}
+                </g>
+              </svg>`;
+            },
+
+            // 5: SOFT VINTAGE (tested not ultra)
+            () => {
+              return `<svg width="720" height="1280" xmlns="http://www.w3.org/2000/svg">
+                <defs>
+                  <linearGradient id="g" x1="0" y1="0" x2="1" y2="1">
+                    <stop offset="0%" stop-color="${style.g1}"/>
+                    <stop offset="100%" stop-color="${style.g2}"/>
+                  </linearGradient>
+                  <filter id="s">
+                    <feDropShadow dx="0" dy="18" stdDeviation="${shadow}" flood-opacity="0.18"/>
+                  </filter>
+                  <filter id="noise">
+                    <feTurbulence type="fractalNoise" baseFrequency="0.75" numOctaves="4" result="noise"/>
+                    <feColorMatrix type="matrix" values="1 0 0 0 0  0 1 0 0 0  0 0 1 0 0  0 0 0 0.07 0" in="noise" result="coloredNoise"/>
+                    <feComposite operator="in" in="coloredNoise" in2="SourceGraphic" result="composite"/>
+                    <feBlend mode="multiply" in="composite" in2="SourceGraphic"/>
+                  </filter>
+                </defs>
+                <g opacity="0.12">${roadDecor}</g>
+                <g transform="translate(35,${top})" filter="url(#noise)">
+                  <rect width="650" height="${L.th}" rx="${cardR}" fill="${cardFill}" filter="url(#s)"/>
+                  <rect x="8" y="8" width="634" height="${L.th-16}" rx="${cardR-6}" fill="none" stroke="#9CA3AF" stroke-width="1.5" stroke-dasharray="8,6" opacity="0.35"/>
+                  <rect x="40" y="-28" width="160" height="56" rx="40" fill="url(#g)" opacity="0.85"/>
+                  <text x="120" y="10" font-family="Georgia, serif" font-size="26" font-weight="800" fill="white" text-anchor="middle">Q${esc(num)}</text>
+                  ${L.qL.map((l,i)=>`<text x="48" y="${90+i*L.qF*1.35}" font-family="Georgia, serif" font-size="${L.qF}" font-weight="700" fill="${textColor}">${esc(l)}</text>`).join('')}
+                  ${(() => {
+                    let y = L.optStartY, s = '';
+                    L.od.forEach((o,i) => {
+                      const col = style.opts[i%4];
+                      s += `<g>
+                        <rect x="40" y="${y}" width="570" height="${o.pillH}" rx="${pillR}" fill="${optionBg}" stroke="${optionStroke}" stroke-width="1.6"/>
+                        <circle cx="76" cy="${y+o.pillH/2}" r="23" fill="${col}"/>
+                        <text x="76" y="${y+o.pillH/2+7}" font-family="Georgia, serif" font-size="20" font-weight="800" fill="white" text-anchor="middle">${o.k}</text>`;
+                      const tb = o.lines.length * o.lh,
+                            fb = y + (o.pillH - tb) / 2 + o.lh * 0.75;
+                      o.lines.forEach((ln, li) =>
+                        s += `<text x="120" y="${fb + li * o.lh}" font-family="Georgia, serif" font-size="${L.oF}" fill="${textColor}">${esc(ln)}</text>`
+                      );
+                      s += `</g>`;
+                      y += o.pillH + 16;
+                    });
+                    return s;
+                  })()}
+                </g>
+              </svg>`;
+            }
           ];
 
-          // ---------- fallback gradient background (glassmorphic) ----------
+          // ---------- fallback background ----------
           async function generateFallbackBg() {
             const bgSvg = `<svg width="720" height="1280" xmlns="http://www.w3.org/2000/svg">
               <defs>
@@ -201,7 +403,7 @@ jobs:
             return await sharp(Buffer.from(bgSvg)).png().toBuffer();
           }
 
-          // ---------- main execution ----------
+          // ---------- main ----------
           (async () => {
             let bgBuffer;
             try {
@@ -217,7 +419,7 @@ jobs:
                 .modulate({ brightness: 0.6 + Math.random() * 0.12, saturation: 1 + Math.random() * 0.2 })
                 .toBuffer();
             } catch (e) {
-              console.warn('Background image fetch failed, using gradient fallback:', e.message);
+              console.warn('Background fetch failed, using gradient fallback:', e.message);
               bgBuffer = await generateFallbackBg();
             }
 
@@ -225,11 +427,23 @@ jobs:
             const svg = themeFn();
             const overlay = await sharp(Buffer.from(svg)).png().toBuffer();
 
-            const frame = path.join(TMP, `frame_${Date.now()}.png`);
+            let frame = path.join(TMP, `frame_${Date.now()}.png`);
             await sharp(bgBuffer)
               .composite([{ input: overlay }])
               .png()
               .toFile(frame);
+
+            // ----- composite the sign image if available -----
+            if (imageBuf) {
+              const imgLeft = 35 + Math.round((650 - imageW) / 2);
+              const imgTop  = Math.round(top + imgTopInCard);
+              const frameWithImg = path.join(TMP, `frame_img_${Date.now()}.png`);
+              await sharp(frame)
+                .composite([{ input: imageBuf, left: imgLeft, top: imgTop }])
+                .png()
+                .toFile(frameWithImg);
+              fs.renameSync(frameWithImg, frame);
+            }
 
             // ----- audio -----
             let audio = null;
@@ -257,7 +471,7 @@ jobs:
 
             execSync(`ffmpeg ${args.map(a => `"${a.replace(/"/g, '\\"')}"`).join(' ')}`);
 
-            console.log(`Generated: ${outFile}   theme: ${style.n}`);
+            console.log(`Generated: ${outFile}   theme: ${style.n}   image: ${imageBuf ? 'yes' : 'no'}`);
           })();
           NODESCRIPT
 
