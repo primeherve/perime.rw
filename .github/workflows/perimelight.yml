@@ -36,6 +36,7 @@ jobs:
           INPUT_X: ${{ github.event.inputs.x }}
         run: |
           node --input-type=commonjs - <<'NODESCRIPT'
+           (async () => {
           const fs = require('fs'),
                 path = require('path'),
                 { execSync } = require('child_process'),
