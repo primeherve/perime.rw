@@ -203,7 +203,7 @@ jobs:
 
             // ---------- SVG THEMES (all light, using L.optStartY) ----------
             const THEMES = [
-               // 7: MINIMALIST ELEVATED (light)
+               // 8: CYBERPUNK GRID (light)
               () => {
                 return `<svg width="720" height="1280" xmlns="http://www.w3.org/2000/svg">
                   <defs>
@@ -212,32 +212,49 @@ jobs:
                       <stop offset="100%" stop-color="${style.g2}"/>
                     </linearGradient>
                     <filter id="s">
-                      <feDropShadow dx="0" dy="16" stdDeviation="${shadow}" flood-opacity="0.12"/>
-                      <feDropShadow dx="0" dy="4" stdDeviation="8" flood-opacity="0.06"/>
+                      <feDropShadow dx="0" dy="14" stdDeviation="${shadow}" flood-opacity="0.4"/>
+                    </filter>
+                    <pattern id="grid" width="30" height="30" patternUnits="userSpaceOnUse">
+                      <rect width="30" height="30" fill="none"/>
+                      <path d="M 30 0 L 0 0 L 0 30" fill="none" stroke="${textColor}" stroke-opacity="0.12" stroke-width="1"/>
+                      <circle cx="0" cy="0" r="1.5" fill="${style.g1}" opacity="0.8"/>
+                      <circle cx="30" cy="30" r="1.5" fill="${style.g2}" opacity="0.8"/>
+                    </pattern>
+                    <filter id="neonText">
+                      <feGaussianBlur stdDeviation="2.5" result="blur"/>
+                      <feMerge>
+                        <feMergeNode in="blur"/>
+                        <feMergeNode in="blur"/>
+                        <feMergeNode in="SourceGraphic"/>
+                      </feMerge>
                     </filter>
                   </defs>
-                  <g opacity="0.1">${roadDecor}</g>
+                  <g opacity="0.08">${roadDecor}</g>
                   <g transform="translate(35,${top})">
                     <rect width="650" height="${L.th}" rx="${cardR}" fill="${cardFill}" filter="url(#s)"/>
-                    <rect x="18" y="18" width="614" height="${L.th-36}" rx="${cardR-12}" fill="none" stroke="${textColor}" stroke-opacity="0.06" stroke-width="1.2"/>
-                    <rect x="40" y="-28" width="160" height="56" rx="28" fill="url(#g)" opacity="0.85"/>
-                    <text x="120" y="10" font-family="Arial" font-size="26" font-weight="800" fill="white" text-anchor="middle">Q${esc(num)}</text>
-                    ${L.qL.map((l,i)=>`<text x="52" y="${90+i*L.qF*1.35}" font-family="Arial" font-size="${L.qF}" font-weight="700" fill="${textColor}" opacity="0.9">${esc(l)}</text>`).join('')}
+                    <rect width="650" height="${L.th}" rx="${cardR}" fill="url(#grid)"/>
+                    <line x1="0" y1="60" x2="650" y2="60" stroke="url(#g)" stroke-width="1" opacity="0.4" stroke-dasharray="10,6" filter="url(#neonText)"/>
+                    <line x1="0" y1="${L.th-60}" x2="650" y2="${L.th-60}" stroke="url(#g)" stroke-width="1" opacity="0.4" stroke-dasharray="10,6" filter="url(#neonText)"/>
+                    <rect x="30" y="-38" width="180" height="66" rx="18" fill="url(#g)"/>
+                    <rect x="30" y="-38" width="180" height="66" rx="18" fill="none" stroke="white" stroke-opacity="0.3" stroke-width="2"/>
+                    <text x="120" y="6" font-family="Courier New, monospace" font-size="28" font-weight="900" fill="white" text-anchor="middle" filter="url(#neonText)">Q${esc(num)}</text>
+                    ${L.qL.map((l,i)=>`<text x="48" y="${90+i*L.qF*1.35}" font-family="Courier New, monospace" font-size="${L.qF}" font-weight="700" fill="${textColor}" filter="url(#neonText)">${esc(l)}</text>`).join('')}
                     ${(() => {
                       let y = L.optStartY, s = '';
                       L.od.forEach((o,i) => {
                         const col = style.opts[i%4];
                         s += `<g>
-                          <rect x="44" y="${y}" width="562" height="${o.pillH}" rx="14" fill="${optionBg}" stroke="${optionStroke}" stroke-width="1.3"/>
-                          <circle cx="80" cy="${y+o.pillH/2}" r="22" fill="${col}"/>
-                          <text x="80" y="${y+o.pillH/2+7}" font-family="Arial" font-size="20" font-weight="800" fill="white" text-anchor="middle">${o.k}</text>`;
+                          <rect x="40" y="${y}" width="570" height="${o.pillH}" rx="0" fill="#0F172A" stroke="${col}" stroke-width="2.5"/>
+                          <rect x="44" y="${y+4}" width="562" height="${o.pillH-8}" fill="none" stroke="${col}" stroke-opacity="0.4" stroke-width="1.5" stroke-dasharray="6,6"/>
+                          <circle cx="76" cy="${y+o.pillH/2}" r="23" fill="${col}"/>
+                          <text x="76" y="${y+o.pillH/2+7}" font-family="Courier New, monospace" font-size="20" font-weight="800" fill="white" text-anchor="middle">${o.k}</text>`;
                         const tb = o.lines.length * o.lh,
                               fb = y + (o.pillH - tb) / 2 + o.lh * 0.75;
                         o.lines.forEach((ln, li) =>
-                          s += `<text x="122" y="${fb + li * o.lh}" font-family="Arial" font-size="${L.oF}" fill="${textColor}" opacity="0.95">${esc(ln)}</text>`
+                          s += `<text x="120" y="${fb + li * o.lh}" font-family="Courier New, monospace" font-size="${L.oF}" fill="${textColor}" filter="url(#neonText)">${esc(ln)}</text>`
                         );
                         s += `</g>`;
-                        y += o.pillH + 18;
+                        y += o.pillH + 16;
                       });
                       return s;
                     })()}
