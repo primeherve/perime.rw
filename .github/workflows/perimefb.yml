@@ -203,8 +203,59 @@ jobs:
 
             // ---------- SVG THEMES (all light, using L.optStartY) ----------
             const THEMES = [
-               () => { return `<svg width="720" height="1280" xmlns="http://www.w3.org/2000/svg"><defs><linearGradient id="g" x1="0" y1="0" x2="1" y2="1"><stop offset="0%" stop-color="${style.g1}"/><stop offset="100%" stop-color="${style.g2}"/></linearGradient><filter id="s"><feDropShadow dx="0" dy="20" stdDeviation="${shadow}" flood-opacity="0.4"/></filter><filter id="neon"><feGaussianBlur stdDeviation="7" result="blur"/><feMerge><feMergeNode in="blur"/><feMergeNode in="blur"/><feMergeNode in="SourceGraphic"/></feMerge></filter><filter id="glowPill"><feGaussianBlur stdDeviation="9" result="b"/><feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge></filter></defs><g opacity="0.1">${roadDecor}</g><g transform="translate(35,${top})"><rect width="650" height="${L.th}" rx="${cardR}" fill="${cardFill}" stroke="#0F172A" stroke-width="3" filter="url(#s)"/><rect width="650" height="${L.th}" rx="${cardR}" fill="none" stroke="url(#g)" stroke-width="4" opacity="0.5"/><rect x="0" y="0" width="650" height="${L.th}" rx="${cardR}" fill="url(#g)" opacity="0.06"/><g><rect x="40" y="-28" width="160" height="56" rx="28" fill="url(#g)" stroke="white" stroke-width="2.5"/><text x="120" y="10" font-family="Arial" font-size="27" font-weight="800" fill="white" text-anchor="middle">Q${esc(num)}</text></g>${L.qL.map((l,i)=>`<text x="48" y="${90+i*L.qF*1.35}" font-family="Arial" font-size="${L.qF}" font-weight="700" fill="${textColor}">${esc(l)}</text>`).join('')}${(() => { let y = L.optStartY, s = ''; L.od.forEach((o,i) => { const col = style.opts[i%4]; s += `<g><rect x="40" y="${y}" width="570" height="${o.pillH}" rx="${pillR}" fill="#FFFFFF" stroke="${col}" stroke-width="3" opacity="0.95"/><circle cx="76" cy="${y+o.pillH/2}" r="24" fill="${col}"/><text x="76" y="${y+o.pillH/2+7}" font-family="Arial" font-size="20" font-weight="800" fill="white" text-anchor="middle">${o.k}</text>`; const tb = o.lines.length * o.lh, fb = y + (o.pillH - tb) / 2 + o.lh * 0.75; o.lines.forEach((ln, li) => s += `<text x="118" y="${fb + li * o.lh}" font-family="Arial" font-size="${L.oF}" fill="${textColor}">${esc(ln)}</text>`); s += `</g>`; y += o.pillH + 16; }); return s; })()}</g></svg>`; },
-            ];
+               // 12: GLASSMORPHISM EXTREME (light)
+              () => {
+                return `<svg width="720" height="1280" xmlns="http://www.w3.org/2000/svg">
+                  <defs>
+                    <linearGradient id="g" x1="0" y1="0" x2="1" y2="1">
+                      <stop offset="0%" stop-color="${style.g1}"/>
+                      <stop offset="100%" stop-color="${style.g2}"/>
+                    </linearGradient>
+                    <filter id="s">
+                      <feDropShadow dx="0" dy="24" stdDeviation="${shadow+6}" flood-opacity="0.35"/>
+                    </filter>
+                    <filter id="glassBlur">
+                      <feGaussianBlur stdDeviation="14" result="bgBlur"/>
+                      <feComposite in="SourceGraphic" in2="bgBlur" operator="over"/>
+                    </filter>
+                    <linearGradient id="iridescent" x1="0" y1="0" x2="1" y2="1">
+                      <stop offset="0%" stop-color="${style.g1}" stop-opacity="0.3"/>
+                      <stop offset="50%" stop-color="${style.g2}" stop-opacity="0.1"/>
+                      <stop offset="100%" stop-color="${style.g1}" stop-opacity="0.15"/>
+                    </linearGradient>
+                  </defs>
+                  <g opacity="0.06">${roadDecor}</g>
+                  <g transform="translate(35,${top})">
+                    <rect width="650" height="${L.th}" rx="${cardR+10}" fill="${cardFill}" stroke="${cardStroke}" stroke-width="1.5" filter="url(#s)"/>
+                    <rect width="650" height="${L.th}" rx="${cardR+10}" fill="white" opacity="0.15" filter="url(#glassBlur)"/>
+                    <rect width="650" height="${L.th}" rx="${cardR+10}" fill="url(#iridescent)"/>
+                    <rect x="20" y="-40" width="190" height="72" rx="24" fill="url(#g)" opacity="0.65"/>
+                    <rect x="20" y="-40" width="190" height="72" rx="24" fill="white" opacity="0.2" filter="url(#glassBlur)"/>
+                    <text x="115" y="8" font-family="Inter,Arial" font-size="28" font-weight="800" fill="white" text-anchor="middle">Q${esc(num)}</text>
+                    ${L.qL.map((l,i)=>`<text x="48" y="${90+i*L.qF*1.35}" font-family="Inter,Arial" font-size="${L.qF}" font-weight="700" fill="${textColor}" opacity="0.95">${esc(l)}</text>`).join('')}
+                    ${(() => {
+                      let y = L.optStartY, s = '';
+                      L.od.forEach((o,i) => {
+                        const col = style.opts[i%4];
+                        s += `<g>
+                          <rect x="40" y="${y}" width="570" height="${o.pillH}" rx="${pillR}" fill="white" opacity="0.25" filter="url(#glassBlur)"/>
+                          <rect x="40" y="${y}" width="570" height="${o.pillH}" rx="${pillR}" fill="none" stroke="${col}" stroke-width="2" opacity="0.8"/>
+                          <circle cx="78" cy="${y+o.pillH/2}" r="25" fill="${col}" opacity="0.95"/>
+                          <text x="78" y="${y+o.pillH/2+7}" font-family="Inter,Arial" font-size="20" font-weight="800" fill="white" text-anchor="middle">${o.k}</text>`;
+                        const tb = o.lines.length * o.lh,
+                              fb = y + (o.pillH - tb) / 2 + o.lh * 0.75;
+                        o.lines.forEach((ln, li) =>
+                          s += `<text x="122" y="${fb + li * o.lh}" font-family="Inter,Arial" font-size="${L.oF}" fill="${textColor}" opacity="0.95">${esc(ln)}</text>`
+                        );
+                        s += `</g>`;
+                        y += o.pillH + 16;
+                      });
+                      return s;
+                    })()}
+                  </g>
+                </svg>`;
+              }
+              ];
 
             // ---------- fallback background ----------
             async function generateFallbackBg() {
