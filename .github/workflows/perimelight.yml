@@ -42,7 +42,7 @@ jobs:
                   { execSync } = require('child_process'),
                   sharp = require('sharp');
 
-            const OUT   = 'perimelight/outputfb';
+            const OUT   = 'perimelight/output';
             const TMP   = 'perimelight/temp';
             const MUSIC = 'perimelight/song';
             const SIGNS = 'perimelight/signs';
@@ -476,5 +476,5 @@ jobs:
         run: |
           git config user.name "GitHub Actions"
           git config user.email "actions@github.com"
-          git add perimelight/outputfb/
+          git add perimelight/output/
           git diff --staged --quiet || (git commit -m "Add quiz video" && git push)
