@@ -203,7 +203,7 @@ jobs:
 
             // ---------- SVG THEMES (all light, using L.optStartY) ----------
             const THEMES = [
-               // 10: RETRO ARCADE (light)
+               // 11: FUTURISTIC HUD (light)
               () => {
                 return `<svg width="720" height="1280" xmlns="http://www.w3.org/2000/svg">
                   <defs>
@@ -214,41 +214,50 @@ jobs:
                     <filter id="s">
                       <feDropShadow dx="0" dy="12" stdDeviation="${shadow}" flood-opacity="0.35"/>
                     </filter>
-                    <pattern id="arcadeDiag" width="20" height="20" patternTransform="rotate(45)" patternUnits="userSpaceOnUse">
-                      <rect width="20" height="20" fill="none"/>
-                      <line x1="0" y1="0" x2="0" y2="20" stroke="#000" stroke-opacity="0.06" stroke-width="4"/>
-                    </pattern>
-                    <pattern id="scanlines" width="4" height="4" patternUnits="userSpaceOnUse">
-                      <rect width="4" height="2" fill="black" opacity="0.08"/>
-                    </pattern>
+                    <filter id="glowLine">
+                      <feGaussianBlur stdDeviation="3" result="b"/>
+                      <feMerge>
+                        <feMergeNode in="b"/>
+                        <feMergeNode in="b"/>
+                        <feMergeNode in="SourceGraphic"/>
+                      </feMerge>
+                    </filter>
                   </defs>
-                  <g opacity="0.12">${roadDecor}</g>
+                  <g opacity="0.08">${roadDecor}</g>
                   <g transform="translate(35,${top})">
-                    <rect width="650" height="${L.th}" rx="16" fill="${cardFill}" filter="url(#s)"/>
-                    <rect width="650" height="${L.th}" rx="16" fill="url(#arcadeDiag)"/>
-                    <rect width="650" height="${L.th}" rx="16" fill="url(#scanlines)"/>
-                    <rect x="35" y="-32" width="170" height="58" rx="14" fill="url(#g)" stroke="#000" stroke-width="4"/>
-                    <rect x="38" y="-29" width="164" height="52" rx="11" fill="none" stroke="#fff" stroke-opacity="0.5" stroke-width="2.5"/>
-                    <text x="120" y="9" font-family="'Press Start 2P', monospace" font-size="20" font-weight="900" fill="white" text-anchor="middle">Q${esc(num)}</text>
-                    ${L.qL.map((l,i)=>`<text x="48" y="${90+i*L.qF*1.35}" font-family="'Press Start 2P', monospace" font-size="${L.qF}" font-weight="700" fill="${textColor}">${esc(l)}</text>`).join('')}
+                    <rect width="650" height="${L.th}" rx="${cardR}" fill="${cardFill}" stroke="#0369A1" stroke-width="2.5" filter="url(#s)"/>
+                    <path d="M10,40 L10,10 L40,10" fill="none" stroke="url(#g)" stroke-width="2.5" filter="url(#glowLine)"/>
+                    <path d="M610,10 L640,10 L640,40" fill="none" stroke="url(#g)" stroke-width="2.5" filter="url(#glowLine)"/>
+                    <path d="M10,${L.th-40} L10,${L.th-10} L40,${L.th-10}" fill="none" stroke="url(#g)" stroke-width="2.5" filter="url(#glowLine)"/>
+                    <path d="M610,${L.th-10} L640,${L.th-10} L640,${L.th-40}" fill="none" stroke="url(#g)" stroke-width="2.5" filter="url(#glowLine)"/>
+                    <line x1="0" y1="0" x2="650" y2="0" stroke="url(#g)" stroke-width="2" filter="url(#glowLine)"/>
+                    <line x1="0" y1="${L.th}" x2="650" y2="${L.th}" stroke="url(#g)" stroke-width="2" filter="url(#glowLine)"/>
+                    <rect x="30" y="-32" width="180" height="64" rx="6" fill="none" stroke="url(#g)" stroke-width="2.5"/>
+                    <rect x="34" y="-28" width="172" height="56" rx="4" fill="url(#g)" opacity="0.9"/>
+                    <text x="120" y="8" font-family="Orbitron, sans-serif" font-size="24" font-weight="800" fill="white" text-anchor="middle" filter="url(#glowLine)">Q${esc(num)}</text>
+                    ${L.qL.map((l,i)=>`<text x="48" y="${90+i*L.qF*1.35}" font-family="Orbitron, sans-serif" font-size="${L.qF}" font-weight="700" fill="${textColor}" filter="url(#glowLine)">${esc(l)}</text>`).join('')}
                     ${(() => {
                       let y = L.optStartY, s = '';
                       L.od.forEach((o,i) => {
                         const col = style.opts[i%4];
                         s += `<g>
-                          <rect x="40" y="${y}" width="570" height="${o.pillH}" rx="12" fill="#FFF" stroke="${textColor}" stroke-width="4"/>
-                          <circle cx="76" cy="${y+o.pillH/2}" r="25" fill="${col}" stroke="#000" stroke-width="3"/>
-                          <text x="76" y="${y+o.pillH/2+7}" font-family="'Press Start 2P', monospace" font-size="16" font-weight="900" fill="white" text-anchor="middle">${o.k}</text>`;
+                          <rect x="40" y="${y}" width="570" height="${o.pillH}" rx="4" fill="${optionBg}" stroke="${col}" stroke-width="2"/>
+                          <rect x="40" y="${y}" width="8" height="${o.pillH}" rx="2" fill="${col}"/>
+                          <circle cx="78" cy="${y+o.pillH/2}" r="21" fill="none" stroke="${col}" stroke-width="2.5"/>
+                          <circle cx="78" cy="${y+o.pillH/2}" r="14" fill="${col}"/>
+                          <text x="78" y="${y+o.pillH/2+7}" font-family="Orbitron, sans-serif" font-size="18" font-weight="800" fill="white" text-anchor="middle">${o.k}</text>`;
                         const tb = o.lines.length * o.lh,
                               fb = y + (o.pillH - tb) / 2 + o.lh * 0.75;
                         o.lines.forEach((ln, li) =>
-                          s += `<text x="118" y="${fb + li * o.lh}" font-family="'Press Start 2P', monospace" font-size="${L.oF}" fill="${textColor}">${esc(ln)}</text>`
+                          s += `<text x="118" y="${fb + li * o.lh}" font-family="Orbitron, sans-serif" font-size="${L.oF}" fill="${textColor}" filter="url(#glowLine)">${esc(ln)}</text>`
                         );
                         s += `</g>`;
                         y += o.pillH + 16;
                       });
                       return s;
                     })()}
+                    <circle cx="670" cy="30" r="8" fill="${style.opts[0]}" filter="url(#glowLine)"/>
+                    <circle cx="670" cy="60" r="6" fill="${style.opts[1]}" opacity="0.9" filter="url(#glowLine)"/>
                   </g>
                 </svg>`;
               }
