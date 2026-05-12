@@ -154,7 +154,7 @@ jobs:
             // ---------- layout (image aware) ----------
             function buildLayout() {
               const opts = ['a','b','c','d'].filter(k => q.opts[k]).map(k => {
-                let t = String(q.opts[k]).replace(/^[A-D][\)\.\-:]?\s*/i, '').trim();
+                let t = String(q.opts[k]).replace(/^[A-D][\.\)\-:]\s*/i, '').trim();
                 if (t && /^[a-z]/.test(t)) t = t.charAt(0).toUpperCase() + t.slice(1);
                 return { k: k.toUpperCase(), t };
               });
