@@ -1,0 +1,427 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="description" content="RoadRules Admin Portal">
+  <title>Admin • RoadRules</title>
+
+  <!-- Early theme script to prevent dark mode flash on reload -->
+  <script>
+    (function() {
+      try {
+        const saved = localStorage.getItem('roadRulesTheme');
+        const prefersDark = window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches;
+        const shouldBeDark = saved === 'dark' || (!saved && prefersDark);
+        if (shouldBeDark) {
+          document.documentElement.classList.add('dark');
+        } else {
+          document.documentElement.classList.remove('dark');
+        }
+      } catch (e) {}
+    })();
+  </script>
+
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+  <link rel="stylesheet" href="common.css">
+</head>
+<body class="bg-slate-50 text-slate-800 dark:bg-slate-950 dark:text-slate-200 antialiased">
+  <!-- POLISHED OFFICIAL MENUBAR (Admin) -->
+  <div class="official-topbar hidden md:block text-white/90">
+    <div class="max-w-screen-2xl mx-auto px-6 lg:px-8 flex items-center justify-between h-7 text-[10px] font-medium tracking-[0.6px]">
+      <div class="flex items-center gap-x-2"><span class="font-semibold">REPUBLIC OF RWANDA</span> <span class="opacity-60">•</span> <span class="opacity-80">Road Safety Education Initiative</span></div>
+      <div class="flex items-center gap-x-4 text-[9.5px] opacity-80"><span>+250 788 762 976</span></div>
+    </div>
+  </div>
+
+  <nav class="sticky top-0 z-50 bg-white dark:bg-slate-900 border-b border-slate-200 dark:border-slate-700 nav-elevated">
+    <div class="max-w-screen-2xl mx-auto">
+      <div class="px-5 md:px-6 lg:px-8">
+        <div class="flex h-[78px] items-center justify-between">
+          <a href="index.html" class="flex items-center gap-x-3 group">
+            <div class="flex h-10 w-10 items-center justify-center rounded-2xl bg-gradient-to-br from-blue-700 to-blue-800 text-white shadow-md ring-1 ring-blue-900/30 group-hover:scale-[1.03] transition-transform"><i class="fa-solid fa-road text-2xl"></i></div>
+            <div class="leading-none"><span class="logo-font text-[27px] font-semibold tracking-[-1.2px] text-slate-900 dark:text-white">RoadRules</span><span class="block -mt-[1px] text-[9.5px] font-semibold tracking-[1.5px] text-blue-700 dark:text-blue-400">AMATEGEKO Y'UMUHANDA</span></div>
+          </a>
+
+          <div class="hidden md:flex items-center gap-x-1 text-[14.5px] font-medium">
+            <a href="index.html" class="nav-link nav-pill px-5 py-2 text-slate-700 dark:text-slate-300 rounded-full hover:bg-slate-100 dark:hover:bg-slate-800">Ahabanza</a>
+            <a href="imyitozo.html" class="nav-link nav-pill px-5 py-2 text-slate-700 dark:text-slate-300 rounded-full hover:bg-slate-100 dark:hover:bg-slate-800">Imyitozo</a>
+            <a href="ibibazo.html" class="nav-link nav-pill px-5 py-2 text-slate-700 dark:text-slate-300 rounded-full hover:bg-slate-100 dark:hover:bg-slate-800">Ibibazo</a>
+            <a href="ifitabuguzi.html" class="nav-link nav-pill px-5 py-2 text-slate-700 dark:text-slate-300 rounded-full hover:bg-slate-100 dark:hover:bg-slate-800">Ifatabuguzi</a>
+            <a href="admin.html" class="nav-link nav-pill active px-5 py-2 text-slate-700 dark:text-slate-300 rounded-full">Admin</a>
+          </div>
+
+          <div class="flex items-center gap-x-2.5">
+            <button onclick="toggleTheme()" id="theme-toggle" class="flex h-10 w-10 items-center justify-center rounded-2xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-white transition-all hover:border-slate-300 active:scale-[0.96]" aria-label="Toggle theme"><i id="theme-icon" class="fa-solid fa-moon text-base"></i></button>
+            <div id="desktop-auth-area" class="hidden sm:flex items-center gap-x-2 pl-2 border-l border-slate-200 dark:border-slate-700">
+              <button onclick="openAuthModal('login')" class="polished-btn px-5 py-[9px] text-sm font-semibold rounded-2xl border border-slate-300 dark:border-slate-600 text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800 transition">Injira</button>
+              <button onclick="openAuthModal('signup')" class="polished-btn px-5 py-[9px] text-sm font-semibold rounded-2xl bg-blue-700 hover:bg-blue-800 text-white shadow-sm transition">Iyandikishe</button>
+            </div>
+            <button onclick="toggleMobileMenu()" id="mobile-menu-button" class="md:hidden flex h-10 w-10 items-center justify-center rounded-2xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-600 dark:text-slate-400 hover:text-slate-800 dark:hover:text-white transition" aria-label="Open menu"><i class="fa-solid fa-bars text-lg"></i></button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div id="mobile-menu" class="hidden md:hidden fixed inset-0 z-[80] bg-black/60" onclick="toggleMobileMenu()">
+      <div onclick="event.stopImmediatePropagation()" class="absolute right-0 top-0 h-full w-[82%] max-w-[320px] bg-white dark:bg-slate-900 shadow-2xl border-l border-slate-200 dark:border-slate-700 p-6">
+        <div class="flex items-center justify-between mb-8">
+          <div class="flex items-center gap-x-3"><div class="h-9 w-9 bg-blue-700 rounded-2xl flex items-center justify-center text-white"><i class="fa-solid fa-road"></i></div><span class="logo-font text-2xl font-semibold tracking-tighter">RoadRules</span></div>
+          <button onclick="toggleMobileMenu()" class="text-3xl text-slate-400 hover:text-slate-600">×</button>
+        </div>
+        <div class="space-y-1 text-[15.5px] font-medium">
+          <a href="index.html" class="block px-4 py-3.5 rounded-2xl text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800">Ahabanza</a>
+          <a href="imyitozo.html" class="block px-4 py-3.5 rounded-2xl text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800">Imyitozo</a>
+           <a href="ibibazo.html" class="block px-4 py-3.5 rounded-2xl text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800">Ibibazo</a>
+          <a href="ifitabuguzi.html" class="block px-4 py-3.5 rounded-2xl text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800">Ifatabuguzi</a>
+          <a href="admin.html" class="block px-4 py-3.5 rounded-2xl bg-blue-50 dark:bg-blue-950 text-blue-700 dark:text-blue-300 font-semibold">Admin</a>
+        </div>
+        <div class="my-7 border-t border-slate-200 dark:border-slate-700"></div>
+        <div id="mobile-auth-area" class="space-y-3">
+          <button onclick="openAuthModal('login'); toggleMobileMenu()" class="w-full py-3.5 rounded-2xl border border-slate-300 dark:border-slate-600 text-sm font-semibold">Injira (Login)</button>
+          <button onclick="openAuthModal('signup'); toggleMobileMenu()" class="w-full py-3.5 rounded-2xl bg-blue-700 text-white text-sm font-semibold">Iyandikishe (Sign Up)</button>
+        </div>
+      </div>
+    </div>
+  </nav>
+
+  <!-- DRIVER DATABASE CONTROL DASHBOARD -->
+  <main class="min-h-[calc(100vh-200px)] max-w-screen-2xl mx-auto px-6 lg:px-8 py-6">
+    <!-- Dashboard Header -->
+    <div class="flex flex-col sm:flex-row sm:items-end sm:justify-between gap-3 mb-6">
+      <div>
+        <div class="flex items-center gap-3 mb-1">
+          <span class="font-mono text-xs uppercase tracking-[2px] text-blue-600">DATABASE CONTROL</span>
+          <span class="px-3 py-0.5 text-xs rounded-full bg-red-100 dark:bg-red-900 text-red-700 dark:text-red-300 font-medium">ADMIN ONLY</span>
+        </div>
+        <h1 class="text-2xl sm:text-3xl font-semibold tracking-tighter">Driver Database & Activity Dashboard</h1>
+        <p class="text-sm text-slate-500">Direct control over all user files in Google Drive</p>
+      </div>
+      <div class="flex-shrink-0">
+          <button onclick="loadAllUsersFromDrive()" 
+                  class="px-4 sm:px-5 py-2.5 text-sm font-semibold rounded-2xl bg-blue-600 text-white hover:bg-blue-700 flex items-center gap-2">
+            <i class="fa-solid fa-sync"></i>
+            <span class="hidden sm:inline">Load / Refresh from Drive</span>
+            <span class="sm:hidden">Refresh</span>
+          </button>
+      </div>
+    </div>
+
+    <!-- Quick Stats -->
+    <div class="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8">
+      <div class="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-3xl p-5">
+        <div class="text-xs text-slate-500">LOADED USERS</div>
+        <div id="stat-loaded" class="text-4xl font-semibold mt-1 tabular-nums">0</div>
+      </div>
+      <div class="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-3xl p-5">
+        <div class="text-xs text-slate-500">WITH PAID PLAN</div>
+        <div id="stat-paid" class="text-4xl font-semibold mt-1 tabular-nums text-emerald-600">0</div>
+      </div>
+      <div class="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-3xl p-5">
+        <div class="text-xs text-slate-500">PENDING APPROVAL</div>
+        <div id="stat-pending-db" class="text-4xl font-semibold mt-1 tabular-nums text-amber-600">0</div>
+      </div>
+      <div class="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-3xl p-5">
+        <div class="text-xs text-slate-500">LAST SYNC</div>
+        <div id="stat-last-sync" class="text-sm font-medium mt-2 text-slate-500">Not loaded</div>
+      </div>
+    </div>
+
+    <!-- User Database Table -->
+    <div class="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-3xl overflow-hidden">
+      <div class="px-4 sm:px-6 py-4 border-b border-slate-200 dark:border-slate-700 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-1">
+        <div class="font-semibold text-sm sm:text-base">All Driver Users (from Google Drive)</div>
+        <div class="text-[10px] sm:text-xs text-slate-400">Changes written directly to each user’s .json file</div>
+      </div>
+      <div class="overflow-x-auto">
+        <table class="w-full text-xs sm:text-sm min-w-[620px]">
+        <thead class="bg-slate-50 dark:bg-slate-800 text-xs text-slate-500">
+          <tr>
+            <th class="text-left px-3 sm:px-6 py-3 font-medium">Name</th>
+            <th class="text-left px-3 sm:px-6 py-3 font-medium">Phone</th>
+            <th class="text-left px-3 sm:px-6 py-3 font-medium">Current Plan</th>
+            <th class="text-left px-3 sm:px-6 py-3 font-medium">Status</th>
+            <th class="text-left px-3 sm:px-6 py-3 font-medium">Last Updated</th>
+            <th class="text-right px-3 sm:px-6 py-3 font-medium">Actions</th>
+          </tr>
+        </thead>
+        <tbody id="users-table-body" class="divide-y divide-slate-200 dark:divide-slate-700">
+          <tr>
+            <td colspan="6" class="px-3 sm:px-6 py-10 text-center text-slate-400">
+              <div class="flex flex-col items-center gap-2">
+                <div class="animate-spin h-5 w-5 border-2 border-slate-400 border-t-transparent rounded-full"></div>
+                <span>Automatically loading users from Google Drive...</span>
+              </div>
+            </td>
+          </tr>
+        </tbody>
+      </table>
+      </div>
+    </div>
+
+    <div class="mt-4 text-xs text-amber-600 flex items-center gap-2">
+      <i class="fa-solid fa-exclamation-triangle"></i>
+      <span>Warning: All actions here write directly and permanently to Google Drive user files.</span>
+    </div>
+  </main>
+
+  <!-- FOOTER -->
+  <footer class="border-t border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900">
+    <div class="max-w-screen-2xl mx-auto px-6 lg:px-8">
+      <div class="py-12 md:py-14 grid grid-cols-2 md:grid-cols-5 gap-y-12 gap-x-6 text-sm">
+        <div class="col-span-2 md:col-span-1">
+          <div class="flex items-center gap-x-3">
+            <div class="flex h-9 w-9 items-center justify-center rounded-2xl bg-blue-600 text-white"><i class="fa-solid fa-road"></i></div>
+            <span class="logo-font font-semibold text-2xl tracking-tighter">RoadRules</span>
+          </div>
+          <div class="mt-4 text-xs text-slate-500 dark:text-slate-400 pr-4">Urubuga rwambere mugutsindisha abanyeshuri bakora ikizamini cya provisoir</div>
+        </div>
+        <div>
+          <div class="font-semibold mb-3 text-xs tracking-widest text-slate-500">PLATFORM</div>
+          <div class="space-y-[9px] text-[13.5px]">
+             <a href="index.html" class="block footer-link">Ahabanza</a>
+             <a href="imyitozo.html" class="block footer-link">Imyitozo</a>
+              <a href="ibibazo.html" class="block footer-link">Ibibazo</a>
+             <a href="ifitabuguzi.html" class="block footer-link">Ifatabuguzi</a>
+          </div>
+        </div>
+        <div>
+          <div class="font-semibold mb-3 text-xs tracking-widest text-slate-500">SUPPORT</div>
+          <div class="space-y-[9px] text-[13.5px]">
+            <a href="#" class="block footer-link">Help Center</a>
+            <a href="#" class="block footer-link">Report Issue</a>
+          </div>
+        </div>
+        <div>
+          <div class="font-semibold mb-3 text-xs tracking-widest text-slate-500">LEGAL</div>
+          <div class="space-y-[9px] text-[13.5px]">
+            <a href="#" class="block footer-link">Privacy Policy</a>
+            <a href="#" class="block footer-link">Terms of Service</a>
+            <a href="#" class="block footer-link">Data Protection</a>
+          </div>
+        </div>
+        <div class="col-span-2 md:col-span-1">
+          <div class="font-semibold mb-3 text-xs tracking-widest text-slate-500">CONNECT</div>
+            <div class="flex items-center gap-x-4 text-lg">
+              <a href="https://www.facebook.com/perime.rw250" class="hover:text-blue-600 transition"><i class="fa-brands fa-facebook"></i></a>
+              <a href="https://www.youtube.com/@perime.rw250" class="hover:text-blue-600 transition"><i class="fa-brands fa-youtube"></i></a>
+              <a href="https://www.tiktok.com/@perime.rw250" class="hover:text-blue-600 transition"><i class="fa-brands fa-tiktok"></i></a>
+            </div>
+          <div class="mt-5 text-xs text-slate-500">© 2026 RoadRules Ltd. • Kigali, Rwanda</div>
+        </div>
+      </div>
+    </div>
+  </footer>
+
+  <!-- AUTH MODAL injected dynamically by auth.js -->
+
+  <script src="auth.js"></script>
+  <script src="common.js"></script>
+  <script>
+    // ========== DRIVER DATABASE DASHBOARD (Google Drive powered) ==========
+    let loadedUsers = [];
+
+    async function loadAllUsersFromDrive() {
+      const tbody = document.getElementById('users-table-body');
+      const button = document.querySelector('button[onclick*="loadAllUsersFromDrive"]');
+
+      // Show nice loading spinner
+      tbody.innerHTML = `
+        <tr>
+          <td colspan="6" class="px-3 sm:px-6 py-10">
+            <div class="flex flex-col items-center justify-center gap-3 text-blue-600 dark:text-blue-400">
+              <div class="animate-spin h-6 w-6 border-[3px] border-blue-500 border-t-transparent rounded-full"></div>
+              <span class="text-sm font-medium">Loading users from Google Drive...</span>
+            </div>
+          </td>
+        </tr>`;
+
+      if (button) button.disabled = true;
+
+      try {
+        const files = await window.RoadRulesAdmin.listAllUserFiles();
+        
+        loadedUsers = [];
+        const toLoad = files.slice(0, 200);
+        const results = await Promise.all(toLoad.map(async (file) => {
+          const userData = await window.RoadRulesAdmin.readUserFileById(file.id);
+          return userData ? { ...userData, _fileId: file.id } : null;
+        }));
+        loadedUsers = results.filter(Boolean);
+
+        renderUserTable();
+        updateDashboardStats();
+
+        document.getElementById('stat-last-sync').textContent = new Date().toLocaleTimeString();
+
+      } catch (err) {
+        tbody.innerHTML = `
+          <tr>
+            <td colspan="6" class="px-3 sm:px-6 py-8 text-center">
+              <div class="text-red-500 text-sm">Failed to load from Drive. Check browser console for details.</div>
+            </td>
+          </tr>`;
+        console.error(err);
+      } finally {
+        if (button) button.disabled = false;
+      }
+    }
+
+    function updateDashboardStats() {
+      document.getElementById('stat-loaded').textContent = loadedUsers.length;
+
+      const paid = loadedUsers.filter(u => u.subscription && u.subscription.amount > 0).length;
+      document.getElementById('stat-paid').textContent = paid;
+
+      const pending = loadedUsers.filter(u => 
+        (u.pendingUpgrade && u.pendingUpgrade.status === 'pending') || 
+        (u.subscription && u.subscription.status === 'pending')
+      ).length;
+      document.getElementById('stat-pending-db').textContent = pending;
+    }
+
+    function renderUserTable() {
+      const tbody = document.getElementById('users-table-body');
+      tbody.innerHTML = '';
+
+        if (loadedUsers.length === 0) {
+        tbody.innerHTML = `<tr><td colspan="6" class="px-3 sm:px-6 py-8 text-center text-slate-400">No users loaded.</td></tr>`;
+        return;
+      }
+
+      loadedUsers.forEach(user => {
+        const sub = user.subscription || { planName: 'Ubuntu Free', status: 'approved' };
+        const pend = user.pendingUpgrade || null;
+
+        let planDisplay = sub.planName || 'Ubuntu Free';
+        let statusHTML = '';
+        let actionButtons = '';
+
+        if (pend && pend.status === 'pending') {
+          // Show pending upgrade request prominently
+          planDisplay = `${sub.planName || 'Ubuntu'} → <span class="text-amber-600">${pend.planName}</span>`;
+          statusHTML = `<span class="px-3 py-0.5 text-xs rounded-full bg-amber-100 text-amber-700">Pending Upgrade</span>`;
+          actionButtons = `
+            <button onclick="adminApprove('${user.phone}')" class="text-xs px-3 py-1 bg-emerald-600 text-white rounded-xl">Approve</button>
+            <button onclick="adminRejectUpgrade('${user.phone}')" class="text-xs px-3 py-1 bg-slate-500 text-white rounded-xl">Reject</button>
+          `;
+        } else if (sub.status === 'pending') {
+          // legacy pending in subscription
+          statusHTML = `<span class="px-3 py-0.5 text-xs rounded-full bg-amber-100 text-amber-700">Pending</span>`;
+          actionButtons = `
+            <button onclick="adminApprove('${user.phone}')" class="text-xs px-3 py-1 bg-emerald-600 text-white rounded-xl">Approve</button>
+            <button onclick="adminDismissPlan('${user.phone}')" class="text-xs px-3 py-1 bg-red-600 text-white rounded-xl">Dismiss</button>
+          `;
+        } else if (sub.status === 'approved' && sub.amount > 0) {
+          statusHTML = `<span class="px-3 py-0.5 text-xs rounded-full bg-emerald-100 text-emerald-700">Active Paid</span>`;
+          actionButtons = `
+            <button onclick="adminDismissPlan('${user.phone}')" class="text-xs px-3 py-1 bg-red-600 text-white rounded-xl">Dismiss Plan</button>
+          `;
+        } else {
+          statusHTML = `<span class="px-3 py-0.5 text-xs rounded-full bg-slate-200 text-slate-600">Ubuntu</span>`;
+        }
+
+        const row = document.createElement('tr');
+        row.className = 'hover:bg-slate-50 dark:hover:bg-slate-800 text-sm';
+        row.innerHTML = `
+          <td class="px-3 sm:px-6 py-3 sm:py-4 font-medium">${user.name || '—'}</td>
+          <td class="px-3 sm:px-6 py-3 sm:py-4 font-mono text-xs">${user.phone}</td>
+          <td class="px-3 sm:px-6 py-3 sm:py-4">${planDisplay}</td>
+          <td class="px-3 sm:px-6 py-3 sm:py-4">${statusHTML}</td>
+          <td class="px-3 sm:px-6 py-3 sm:py-4 text-xs text-slate-500">${user.lastUpdated ? new Date(user.lastUpdated).toLocaleDateString() : '—'}</td>
+          <td class="px-3 sm:px-6 py-3 sm:py-4 text-right whitespace-nowrap space-x-1 sm:space-x-2">
+            ${actionButtons}
+            <button onclick="viewUserDetails('${user.phone}')" class="text-xs px-2 sm:px-3 py-1 border rounded-xl">View</button>
+          </td>
+        `;
+        tbody.appendChild(row);
+      });
+    }
+
+    async function adminApprove(phone) {
+      const user = loadedUsers.find(u => u.phone === phone);
+      if (!user) return;
+
+      let planDataToApprove;
+      let clearPending = false;
+
+      if (user.pendingUpgrade && user.pendingUpgrade.status === 'pending') {
+        planDataToApprove = user.pendingUpgrade;
+        clearPending = true;
+      } else if (user.subscription) {
+        planDataToApprove = user.subscription;
+      } else {
+        return;
+      }
+
+      // Approve the plan (sets subscription to approved version)
+      const success = await window.RoadRulesAdmin.approveUserPlan(phone, planDataToApprove);
+
+      if (success && clearPending) {
+        // Clear the pendingUpgrade request now that it is promoted
+        await window.RoadRulesAdmin.updateUserData(phone, { pendingUpgrade: undefined });
+      }
+
+      if (success) {
+        alert('Plan approved and synced to Google Drive.');
+        await loadAllUsersFromDrive(); // refresh
+      } else {
+        alert('Failed to sync to Drive.');
+      }
+    }
+
+    async function adminDismissPlan(phone) {
+      if (!confirm(`Dismiss paid plan for ${phone}? This will reset them to Ubuntu Free.`)) return;
+
+      const success = await window.RoadRulesAdmin.dismissUserPlan(phone);
+      if (success) {
+        alert('Plan dismissed. User reset to Ubuntu. Changes saved to Google Drive.');
+        await loadAllUsersFromDrive();
+      } else {
+        alert('Failed to write to Drive.');
+      }
+    }
+
+    async function adminRejectUpgrade(phone) {
+      if (!confirm(`Reject the pending upgrade request for ${phone}? Their current plan will stay unchanged.`)) return;
+
+      // Just clear the pendingUpgrade; leave existing subscription (approved plan) intact
+      const success = await window.RoadRulesAdmin.updateUserData(phone, { pendingUpgrade: undefined });
+      if (success) {
+        alert('Upgrade request rejected. User remains on their previous plan.');
+        await loadAllUsersFromDrive();
+      } else {
+        alert('Failed to update Drive.');
+      }
+    }
+
+    async function viewUserDetails(phone) {
+      const data = await window.RoadRulesAdmin.getUserData(phone);
+      if (!data) {
+        alert('Could not load user from Drive');
+        return;
+      }
+      const json = JSON.stringify(data, null, 2);
+      const win = window.open('', '_blank');
+      win.document.write(`<pre style="padding:20px; background:#111; color:#0f0; font-size:12px;">${json}</pre>`);
+    }
+
+    function initializeApp(){ 
+      initTailwind(); 
+      initTheme(); 
+      initAccessibility(); 
+
+      // Auto-load users from Google Drive on page load
+      setTimeout(() => {
+        if (typeof window.RoadRulesAdmin !== 'undefined' && typeof loadAllUsersFromDrive === 'function') {
+          loadAllUsersFromDrive();
+        }
+      }, 800);
+
+      console.log('%c[Admin] Driver Database Dashboard ready. Data loads automatically (manual button also available).', 'color:#64748b');
+    } 
+    window.onload=initializeApp;
+  </script>
+</body>
+</html>
