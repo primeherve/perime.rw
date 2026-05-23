@@ -1,0 +1,7 @@
+[      45ms] [WARNING] cdn.tailwindcss.com should not be used in production. To use Tailwind CSS in production, install it as a PostCSS plugin or use the Tailwind CLI: https://tailwindcss.com/docs/installation @ https://cdn.tailwindcss.com/:63
+[     299ms] [LOG] %c[RoadRules Admin] Direct Google Drive control enabled. Use window.RoadRulesAdmin.* color:#f59e0b @ http://localhost:8765/auth.js:611
+[     316ms] [LOG] %c[RoadRules] Clean questions bank loaded. Total: 399 color:#10b981 @ http://localhost:8765/questions.js:2409
+[     321ms] [LOG] %c[RoadRules] Google Drive auth driver active (same as your reference) color:#64748b @ http://localhost:8765/auth.js:495
+[     373ms] [VERBOSE] [DOM] Input elements should have autocomplete attributes (suggested: "current-password"): (More info: https://goo.gl/9p2vKq) %o @ http://localhost:8765/ibibazo.html?nocache=mix2:0
+[     373ms] [VERBOSE] [DOM] Input elements should have autocomplete attributes (suggested: "current-password"): (More info: https://goo.gl/9p2vKq) %o @ http://localhost:8765/ibibazo.html?nocache=mix2:0
+[     378ms] [LOG] %c[Ibibazo] 20 static Isuzuma ready. Total questions: 399 color:#10b981 @ http://localhost:8765/ibibazo.html?nocache=mix2:425

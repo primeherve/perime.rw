@@ -1,0 +1,39 @@
+[     439ms] [WARNING] cdn.tailwindcss.com should not be used in production. To use Tailwind CSS in production, install it as a PostCSS plugin or use the Tailwind CLI: https://tailwindcss.com/docs/installation @ https://cdn.tailwindcss.com/:63
+[     663ms] [LOG] %c[RoadRules Admin] Direct Google Drive control enabled. Use window.RoadRulesAdmin.* color:#f59e0b @ http://localhost:8765/auth.js:611
+[     678ms] [LOG] %c[RoadRules] Clean questions bank loaded. Total: 399 color:#10b981 @ http://localhost:8765/questions.js:2409
+[     681ms] [LOG] %c[RoadRules] Google Drive auth driver active (same as your reference) color:#64748b @ http://localhost:8765/auth.js:495
+[     728ms] [VERBOSE] [DOM] Input elements should have autocomplete attributes (suggested: "current-password"): (More info: https://goo.gl/9p2vKq) %o @ http://localhost:8765/ibibazo.html?nocache=mix1:0
+[     728ms] [VERBOSE] [DOM] Input elements should have autocomplete attributes (suggested: "current-password"): (More info: https://goo.gl/9p2vKq) %o @ http://localhost:8765/ibibazo.html?nocache=mix1:0
+[     733ms] [LOG] %c[Ibibazo] 20 static Isuzuma ready. Total questions: 399 color:#10b981 @ http://localhost:8765/ibibazo.html?nocache=mix1:424
+[    4275ms] [ERROR] Failed to load resource: the server responded with a status of 404 (File not found) @ http://localhost:8765/signs/69.jpg:0
+[    4276ms] [ERROR] Failed to load resource: the server responded with a status of 404 (File not found) @ http://localhost:8765/signs/320.jpg:0
+[    4277ms] [ERROR] Failed to load resource: the server responded with a status of 404 (File not found) @ http://localhost:8765/signs/182.jpg:0
+[    4277ms] [ERROR] Failed to load resource: the server responded with a status of 404 (File not found) @ http://localhost:8765/signs/105.jpg:0
+[    4278ms] [ERROR] Failed to load resource: the server responded with a status of 404 (File not found) @ http://localhost:8765/signs/3.jpg:0
+[    4278ms] [ERROR] Failed to load resource: the server responded with a status of 404 (File not found) @ http://localhost:8765/signs/26.jpg:0
+[    4279ms] [ERROR] Failed to load resource: the server responded with a status of 404 (File not found) @ http://localhost:8765/signs/30.jpg:0
+[    4279ms] [ERROR] Failed to load resource: the server responded with a status of 404 (File not found) @ http://localhost:8765/signs/337.jpg:0
+[    4281ms] [ERROR] Failed to load resource: the server responded with a status of 404 (File not found) @ http://localhost:8765/signs/379.jpg:0
+[    4282ms] [ERROR] Failed to load resource: the server responded with a status of 404 (File not found) @ http://localhost:8765/signs/103.jpg:0
+[    4283ms] [ERROR] Failed to load resource: the server responded with a status of 404 (File not found) @ http://localhost:8765/signs/191.jpg:0
+[    4285ms] [ERROR] Failed to load resource: the server responded with a status of 404 (File not found) @ http://localhost:8765/signs/127.jpg:0
+[    4286ms] [ERROR] Failed to load resource: the server responded with a status of 404 (File not found) @ http://localhost:8765/signs/43.jpg:0
+[    4287ms] [ERROR] Failed to load resource: the server responded with a status of 404 (File not found) @ http://localhost:8765/signs/241.jpg:0
+[    4287ms] [ERROR] Failed to load resource: the server responded with a status of 404 (File not found) @ http://localhost:8765/signs/68.jpg:0
+[    4287ms] [ERROR] Failed to load resource: the server responded with a status of 404 (File not found) @ http://localhost:8765/signs/279.jpg:0
+[    4316ms] [ERROR] Failed to load resource: the server responded with a status of 404 (File not found) @ http://localhost:8765/signs/69.png:0
+[    4319ms] [ERROR] Failed to load resource: the server responded with a status of 404 (File not found) @ http://localhost:8765/signs/320.png:0
+[    4320ms] [ERROR] Failed to load resource: the server responded with a status of 404 (File not found) @ http://localhost:8765/signs/182.png:0
+[    4327ms] [ERROR] Failed to load resource: the server responded with a status of 404 (File not found) @ http://localhost:8765/signs/105.png:0
+[    4334ms] [ERROR] Failed to load resource: the server responded with a status of 404 (File not found) @ http://localhost:8765/signs/26.png:0
+[    4335ms] [ERROR] Failed to load resource: the server responded with a status of 404 (File not found) @ http://localhost:8765/signs/3.png:0
+[    4361ms] [ERROR] Failed to load resource: the server responded with a status of 404 (File not found) @ http://localhost:8765/signs/30.png:0
+[    4362ms] [ERROR] Failed to load resource: the server responded with a status of 404 (File not found) @ http://localhost:8765/signs/337.png:0
+[    4362ms] [ERROR] Failed to load resource: the server responded with a status of 404 (File not found) @ http://localhost:8765/signs/379.png:0
+[    4363ms] [ERROR] Failed to load resource: the server responded with a status of 404 (File not found) @ http://localhost:8765/signs/103.png:0
+[    4364ms] [ERROR] Failed to load resource: the server responded with a status of 404 (File not found) @ http://localhost:8765/signs/191.png:0
+[    4365ms] [ERROR] Failed to load resource: the server responded with a status of 404 (File not found) @ http://localhost:8765/signs/127.png:0
+[    4366ms] [ERROR] Failed to load resource: the server responded with a status of 404 (File not found) @ http://localhost:8765/signs/43.png:0
+[    4368ms] [ERROR] Failed to load resource: the server responded with a status of 404 (File not found) @ http://localhost:8765/signs/68.png:0
+[    4385ms] SyntaxError: Failed to execute 'querySelectorAll' on 'Element': '> div' is not a valid selector.
+    at eval (eval at <anonymous> (eval at evaluate (:302:30)), <anonymous>:10:30)

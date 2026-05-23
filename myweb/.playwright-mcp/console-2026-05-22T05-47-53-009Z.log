@@ -1,0 +1,59 @@
+[     454ms] [WARNING] cdn.tailwindcss.com should not be used in production. To use Tailwind CSS in production, install it as a PostCSS plugin or use the Tailwind CLI: https://tailwindcss.com/docs/installation @ https://cdn.tailwindcss.com/:63
+[     706ms] [LOG] %c[RoadRules Admin] Direct Google Drive control enabled. Use window.RoadRulesAdmin.* color:#f59e0b @ http://localhost:8765/auth.js:611
+[     725ms] [LOG] %c[RoadRules] Clean questions bank loaded. Total: 399 color:#10b981 @ http://localhost:8765/questions.js:2409
+[     728ms] [LOG] %c[RoadRules] Google Drive auth driver active (same as your reference) color:#64748b @ http://localhost:8765/auth.js:495
+[     767ms] [VERBOSE] [DOM] Input elements should have autocomplete attributes (suggested: "current-password"): (More info: https://goo.gl/9p2vKq) %o @ http://localhost:8765/ibibazo.html?nocache=2:0
+[     767ms] [VERBOSE] [DOM] Input elements should have autocomplete attributes (suggested: "current-password"): (More info: https://goo.gl/9p2vKq) %o @ http://localhost:8765/ibibazo.html?nocache=2:0
+[     773ms] [LOG] %c[Ibibazo] 20 static Isuzuma ready. Total questions: 399 color:#10b981 @ http://localhost:8765/ibibazo.html?nocache=2:408
+[   13966ms] [ERROR] Failed to load resource: the server responded with a status of 404 (File not found) @ http://localhost:8765/signs/3.jpg:0
+[   13967ms] [ERROR] Failed to load resource: the server responded with a status of 404 (File not found) @ http://localhost:8765/signs/4.jpg:0
+[   13967ms] [ERROR] Failed to load resource: the server responded with a status of 404 (File not found) @ http://localhost:8765/signs/1.jpg:0
+[   13968ms] [ERROR] Failed to load resource: the server responded with a status of 404 (File not found) @ http://localhost:8765/signs/2.jpg:0
+[   13968ms] [ERROR] Failed to load resource: the server responded with a status of 404 (File not found) @ http://localhost:8765/signs/5.jpg:0
+[   13969ms] [ERROR] Failed to load resource: the server responded with a status of 404 (File not found) @ http://localhost:8765/signs/6.jpg:0
+[   13970ms] [ERROR] Failed to load resource: the server responded with a status of 404 (File not found) @ http://localhost:8765/signs/7.jpg:0
+[   13970ms] [ERROR] Failed to load resource: the server responded with a status of 404 (File not found) @ http://localhost:8765/signs/9.jpg:0
+[   13971ms] [ERROR] Failed to load resource: the server responded with a status of 404 (File not found) @ http://localhost:8765/signs/10.jpg:0
+[   14012ms] [ERROR] Failed to load resource: the server responded with a status of 404 (File not found) @ http://localhost:8765/signs/8.jpg:0
+[   14013ms] [ERROR] Failed to load resource: the server responded with a status of 404 (File not found) @ http://localhost:8765/signs/11.jpg:0
+[   14014ms] [ERROR] Failed to load resource: the server responded with a status of 404 (File not found) @ http://localhost:8765/signs/12.jpg:0
+[   14015ms] [ERROR] Failed to load resource: the server responded with a status of 404 (File not found) @ http://localhost:8765/signs/13.jpg:0
+[   14016ms] [ERROR] Failed to load resource: the server responded with a status of 404 (File not found) @ http://localhost:8765/signs/14.jpg:0
+[   14016ms] [ERROR] Failed to load resource: the server responded with a status of 404 (File not found) @ http://localhost:8765/signs/16.jpg:0
+[   14017ms] [ERROR] Failed to load resource: the server responded with a status of 404 (File not found) @ http://localhost:8765/signs/15.jpg:0
+[   14018ms] [ERROR] Failed to load resource: the server responded with a status of 404 (File not found) @ http://localhost:8765/signs/17.jpg:0
+[   14018ms] [ERROR] Failed to load resource: the server responded with a status of 404 (File not found) @ http://localhost:8765/signs/18.jpg:0
+[   14019ms] [ERROR] Failed to load resource: the server responded with a status of 404 (File not found) @ http://localhost:8765/signs/20.jpg:0
+[   14019ms] [ERROR] Failed to load resource: the server responded with a status of 404 (File not found) @ http://localhost:8765/signs/19.jpg:0
+[   14046ms] [ERROR] Failed to load resource: the server responded with a status of 404 (File not found) @ http://localhost:8765/signs/3.png:0
+[   14081ms] [ERROR] Failed to load resource: the server responded with a status of 404 (File not found) @ http://localhost:8765/signs/4.png:0
+[   14082ms] [ERROR] Failed to load resource: the server responded with a status of 404 (File not found) @ http://localhost:8765/signs/1.png:0
+[   14082ms] [ERROR] Failed to load resource: the server responded with a status of 404 (File not found) @ http://localhost:8765/signs/2.png:0
+[   14083ms] [ERROR] Failed to load resource: the server responded with a status of 404 (File not found) @ http://localhost:8765/signs/5.png:0
+[   14084ms] [ERROR] Failed to load resource: the server responded with a status of 404 (File not found) @ http://localhost:8765/signs/6.png:0
+[   14084ms] [ERROR] Failed to load resource: the server responded with a status of 404 (File not found) @ http://localhost:8765/signs/7.png:0
+[   14085ms] [ERROR] Failed to load resource: the server responded with a status of 404 (File not found) @ http://localhost:8765/signs/9.png:0
+[   14085ms] [ERROR] Failed to load resource: the server responded with a status of 404 (File not found) @ http://localhost:8765/signs/8.png:0
+[   14086ms] [ERROR] Failed to load resource: the server responded with a status of 404 (File not found) @ http://localhost:8765/signs/11.png:0
+[   14087ms] [ERROR] Failed to load resource: the server responded with a status of 404 (File not found) @ http://localhost:8765/signs/10.png:0
+[   14108ms] [ERROR] Failed to load resource: the server responded with a status of 404 (File not found) @ http://localhost:8765/signs/12.png:0
+[   14110ms] [ERROR] Failed to load resource: the server responded with a status of 404 (File not found) @ http://localhost:8765/signs/13.png:0
+[   14111ms] [ERROR] Failed to load resource: the server responded with a status of 404 (File not found) @ http://localhost:8765/signs/14.png:0
+[   14112ms] [ERROR] Failed to load resource: the server responded with a status of 404 (File not found) @ http://localhost:8765/signs/16.png:0
+[   14114ms] [ERROR] Failed to load resource: the server responded with a status of 404 (File not found) @ http://localhost:8765/signs/15.png:0
+[   14114ms] [ERROR] Failed to load resource: the server responded with a status of 404 (File not found) @ http://localhost:8765/signs/17.png:0
+[   14120ms] [ERROR] Failed to load resource: the server responded with a status of 404 (File not found) @ http://localhost:8765/signs/18.png:0
+[   14121ms] [ERROR] Failed to load resource: the server responded with a status of 404 (File not found) @ http://localhost:8765/signs/20.png:0
+[   14121ms] [ERROR] Failed to load resource: the server responded with a status of 404 (File not found) @ http://localhost:8765/signs/19.png:0
+[   22498ms] [ERROR] Failed to load resource: the server responded with a status of 404 (File not found) @ http://localhost:8765/signs/419.jpg:0
+[   22500ms] [ERROR] Failed to load resource: the server responded with a status of 404 (File not found) @ http://localhost:8765/signs/417.jpg:0
+[   22501ms] [ERROR] Failed to load resource: the server responded with a status of 404 (File not found) @ http://localhost:8765/signs/420.jpg:0
+[   22503ms] [ERROR] Failed to load resource: the server responded with a status of 404 (File not found) @ http://localhost:8765/signs/418.jpg:0
+[   22508ms] [ERROR] Failed to load resource: the server responded with a status of 404 (File not found) @ http://localhost:8765/signs/421.jpg:0
+[   22510ms] [ERROR] Failed to load resource: the server responded with a status of 404 (File not found) @ http://localhost:8765/signs/423.jpg:0
+[   22511ms] [ERROR] Failed to load resource: the server responded with a status of 404 (File not found) @ http://localhost:8765/signs/425.jpg:0
+[   22522ms] [ERROR] Failed to load resource: the server responded with a status of 404 (File not found) @ http://localhost:8765/signs/426.jpg:0
+[   22559ms] [ERROR] Failed to load resource: the server responded with a status of 404 (File not found) @ http://localhost:8765/signs/428.jpg:0
+[   22560ms] [ERROR] Failed to load resource: the server responded with a status of 404 (File not found) @ http://localhost:8765/signs/429.jpg:0
+[   22562ms] [ERROR] Failed to load resource: the server responded with a status of 404 (File not found) @ http://localhost:8765/signs/434.jpg:0
+[   22600ms] [ERROR] Failed to load resource: the server responded with a status of 404 (File not found) @ http://localhost:8765/signs/434.png:0
