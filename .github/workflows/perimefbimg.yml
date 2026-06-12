@@ -170,7 +170,7 @@ jobs:
 
             // Question text
             L.qLines.forEach((line, i) => {
-              const y = topY + 50 + i * L.qFont * 1.35;
+              const y = topY + 60 + i * L.qFont * 1.35;
               svgParts.push(`<text x="90" y="${y}" font-family="Arial, sans-serif" font-size="${L.qFont}" font-weight="600" fill="#FFFFFF">${escapeXml(line)}</text>`);
             });
 
@@ -192,7 +192,7 @@ jobs:
               // Option text lines
               const textBlockY = pillY + (pillH - o.lines.length * o.lh) / 2 + o.lh * 0.8;
               o.lines.forEach((line, li) => {
-                svgParts.push(`<text x="170" y="${textBlockY + li * o.lh}" font-family="Arial, sans-serif" font-size="${L.oFont}" fill="#E5E7EB">${escapeXml(line)}</text>`);
+                svgParts.push(`<text x="190" y="${textBlockY + li * o.lh}" font-family="Arial, sans-serif" font-size="${L.oFont}" fill="#E5E7EB">${escapeXml(line)}</text>`);
               });
 
               optY += pillH + 24;
