@@ -1,14 +1,14 @@
-name: Generate Quiz Image v2
+name: Generate Quiz Image for facebook
 
 on:
   workflow_dispatch:
     inputs:
-      q:  { description: 'Question text', required: true, type: string }
-      a:  { description: 'Option A', required: true, type: string }
-      b:  { description: 'Option B', required: true, type: string }
-      c:  { description: 'Option C', required: false, type: string, default: '' }
-      d:  { description: 'Option D', required: false, type: string, default: '' }
-      x:  { description: 'Question number/ID', required: true, type: string }
+      q: { description: 'Question text', required: true, type: string }
+      a: { description: 'Option A', required: true, type: string }
+      b: { description: 'Option B', required: true, type: string }
+      c: { description: 'Option C', required: false, type: string, default: '' }
+      d: { description: 'Option D', required: false, type: string, default: '' }
+      x: { description: 'Question number/ID', required: true, type: string }
       brand: { description: 'Brand / username watermark', required: false, type: string, default: 'perime.rw250' }
 
 jobs:
@@ -26,83 +26,44 @@ jobs:
 
       - name: Generate Quiz Image
         env:
-          INPUT_Q:     ${{ github.event.inputs.q }}
-          INPUT_A:     ${{ github.event.inputs.a }}
-          INPUT_B:     ${{ github.event.inputs.b }}
-          INPUT_C:     ${{ github.event.inputs.c }}
-          INPUT_D:     ${{ github.event.inputs.d }}
-          INPUT_X:     ${{ github.event.inputs.x }}
+          INPUT_Q: ${{ github.event.inputs.q }}
+          INPUT_A: ${{ github.event.inputs.a }}
+          INPUT_B: ${{ github.event.inputs.b }}
+          INPUT_C: ${{ github.event.inputs.c }}
+          INPUT_D: ${{ github.event.inputs.d }}
+          INPUT_X: ${{ github.event.inputs.x }}
           INPUT_BRAND: ${{ github.event.inputs.brand }}
         run: |
           node --input-type=commonjs - <<'NODESCRIPT'
           (async () => {
-            const fs = require('fs');
-            const path = require('path');
-            const sharp = require('sharp');
+            const fs = require('fs'),
+                  path = require('path'),
+                  sharp = require('sharp');
 
-            // ---------- Helpers ----------
-            const escapeXml = (s) =>
-              String(s)
-                .replace(/&/g, '&amp;')
-                .replace(/</g, '&lt;')
-                .replace(/>/g, '&gt;')
-                .replace(/"/g, '&quot;')
-                .replace(/'/g, '&#39;');
-
-            const estimateWidth = (t, fontSize) => t.length * fontSize * 0.55;
-            const wrapText = (text, maxWidth, fontSize) => {
-              const words = String(text).trim().split(/\s+/);
-              const lines = [];
-              let current = '';
-              for (const w of words) {
-                const trial = current ? current + ' ' + w : w;
-                if (estimateWidth(trial, fontSize) <= maxWidth) {
-                  current = trial;
-                  continue;
-                }
-                if (current) lines.push(current);
-                if (estimateWidth(w, fontSize) > maxWidth) {
-                  let part = '';
-                  for (const ch of w) {
-                    if (estimateWidth(part + ch, fontSize) <= maxWidth) {
-                      part += ch;
-                    } else {
-                      lines.push(part);
-                      part = ch;
-                    }
-                  }
-                  current = part;
-                } else {
-                  current = w;
-                }
-              }
-              if (current) lines.push(current);
-              return lines;
-            };
-
-            // ---------- Settings ----------
-            const W = 1080, H = 1350;             // 4:5 Facebook feed
+            // --- Output settings ---
+            const W = 1080, H = 1350; // 4:5 Facebook feed
             const OUT_DIR = 'perimelight/outputfbimg';
             const SIGNS_DIR = 'perimelight/signs';
             fs.mkdirSync(OUT_DIR, { recursive: true });
 
-            // ---------- Inputs ----------
+            // --- Parse inputs ---
             const q = {
-              id:    process.env.INPUT_X || '1',
-              text:  process.env.INPUT_Q || '',
+              id: process.env.INPUT_X || '1',
+              text: process.env.INPUT_Q || '',
               opts: {
                 a: process.env.INPUT_A,
                 b: process.env.INPUT_B,
                 c: process.env.INPUT_C,
                 d: process.env.INPUT_D
               },
-              brand: (process.env.INPUT_BRAND || 'perime.rw250').replace(/^@/, '')
+              brand: process.env.INPUT_BRAND || 'perime.rw250'
             };
 
-            // ---------- Optional sign image ----------
-            const hasImage = /\[image\]/i.test(q.text);
+            // Clean question text
+            let hasImage = /\[image\]/i.test(q.text);
             if (hasImage) q.text = q.text.replace(/\[image\]/i, '').trim();
 
+            // --- Load optional sign image ---
             const exts = ['.jpg', '.jpeg', '.png', '.webp'];
             let signPath = null;
             for (const e of exts) {
@@ -113,9 +74,9 @@ jobs:
             let imageBuf = null, imageW = 0, imageH = 0;
             if (hasImage && signPath) {
               try {
-                const maxImgWidth = Math.floor(W * 0.78);
+                const maxImgWidth = Math.floor(W * 0.82);
                 imageBuf = await sharp(signPath)
-                  .resize(maxImgWidth, 400, { fit: 'inside', withoutEnlargement: true })
+                  .resize(maxImgWidth, 420, { fit: 'inside', withoutEnlargement: true })
                   .png()
                   .toBuffer();
                 const meta = await sharp(imageBuf).metadata();
@@ -127,27 +88,49 @@ jobs:
               }
             }
 
-            // ---------- Option colours ----------
+            // --- Text helpers ---
+            function estimateWidth(t, fontSize) { return t.length * fontSize * 0.55; }
+            function wrapText(text, maxWidth, fontSize) {
+              const words = String(text).trim().split(/\s+/);
+              const lines = [];
+              let current = '';
+              for (const w of words) {
+                const trial = current ? current + ' ' + w : w;
+                if (estimateWidth(trial, fontSize) <= maxWidth) { current = trial; continue; }
+                if (current) lines.push(current);
+                if (estimateWidth(w, fontSize) > maxWidth) {
+                  let part = '';
+                  for (const ch of w) {
+                    if (estimateWidth(part + ch, fontSize) <= maxWidth) { part += ch; }
+                    else { lines.push(part); part = ch; }
+                  }
+                  current = part;
+                } else { current = w; }
+              }
+              if (current) lines.push(current);
+              return lines;
+            }
+
+            // --- Options with Facebook-friendly colors ---
             const optColors = {
-              A: { bg: '#FFEBEE', accent: '#FF3B30', txt: '#1A1A1A' },
-              B: { bg: '#E8F0FE', accent: '#0A84FF', txt: '#1A1A1A' },
-              C: { bg: '#FFF8E1', accent: '#FFB800', txt: '#1A1A1A' },
-              D: { bg: '#E8F5E9', accent: '#34C759', txt: '#1A1A1A' }
+              A: { bg: '#FFE8E8', accent: '#FF3B30', text: '#1a1a1a' },
+              B: { bg: '#E8F0FF', accent: '#0A84FF', text: '#1a1a1a' },
+              C: { bg: '#FFF6D6', accent: '#FFB800', text: '#1a1a1a' },
+              D: { bg: '#E6FFF0', accent: '#00C853', text: '#1a1a1a' }
             };
 
-            const opts = ['a','b','c','d']
-              .filter(k => q.opts[k])
-              .map(k => {
-                let t = String(q.opts[k]).replace(/^[A-D][\.\)\-:]\s*/i, '').trim();
-                if (t && /^[a-z]/.test(t)) t = t.charAt(0).toUpperCase() + t.slice(1);
-                return { k: k.toUpperCase(), t, ...optColors[k.toUpperCase()] };
-              });
+            const opts = ['a','b','c','d'].filter(k => q.opts[k]).map(k => {
+              let t = String(q.opts[k]).replace(/^[A-D][\.\)\-:]\s*/i, '').trim();
+              if (t && /^[a-z]/.test(t)) t = t.charAt(0).toUpperCase() + t.slice(1);
+              const key = k.toUpperCase();
+              return { k: key, t, color: optColors[key] || optColors.A };
+            });
 
-            // ---------- Layout calculation ----------
-            const PAD_X   = 80;
+            // --- Layout calculation ---
+            const PAD_X = 84;
             const Q_MAX_W = W - PAD_X * 2;
-            const O_MAX_W = W - PAD_X * 2 - 80;
-
+            const O_MAX_W = W - PAD_X * 2 - 90;
+            
             let qFont = 52, oFont = 36;
             let L = null;
 
@@ -157,17 +140,16 @@ jobs:
               const od = opts.map(o => {
                 const ls = wrapText(o.t, O_MAX_W, oFont);
                 const lh = oFont * 1.28;
-                const pillH = Math.max(100, ls.length * lh + 44);
-                return { ...o, lines: ls, lh, pillH };
+                const ph = Math.max(96, ls.length * lh + 36);
+                return { ...o, lines: ls, lh, pillH: ph };
               });
-              const cardPad = 60;
+              const cardPad = 56;
               const questionCardH = qHeight + cardPad * 2;
-              const optionsH = od.reduce((s,o) => s + o.pillH, 0) + (od.length - 1) * 20;
-              const imageAreaH = (imageBuf ? imageH + 28 : 0);
-              const totalH = 160 + questionCardH + imageAreaH + optionsH + 160;
-
-              if (totalH <= H - 20 && qLines.length <= 6 && od.every(o => o.lines.length <= 3)) {
-                L = { qFont, oFont, qLines, qHeight, od, questionCardH, totalH, imageAreaH };
+              const optionsH = od.reduce((s,o) => s + o.pillH, 0) + (od.length - 1) * 18;
+              const totalH = 140 + questionCardH + (imageBuf ? imageH + 22 : 22) + optionsH + 140;
+              
+              if (totalH <= H - 20 && qLines.length <= 6 && od.every(o => o.lines.length <= 4)) {
+                L = { qFont, oFont, qLines, qHeight, od, questionCardH, totalH };
                 break;
               }
               if (qLines.length > 4 || qHeight > 320) qFont = Math.max(34, qFont - 2);
@@ -179,127 +161,126 @@ jobs:
                 const ls = wrapText(o.t, O_MAX_W, 28);
                 return { ...o, lines: ls, lh: 28*1.28, pillH: Math.max(96, ls.length * 28*1.28 + 36) };
               });
-              L = {
-                qFont: 34, oFont: 28,
-                qLines, qHeight: qLines.length * 34 * 1.32,
-                od, questionCardH: qLines.length * 34 * 1.32 + 120,
-                totalH: H, imageAreaH: 0
-              };
+              L = { qFont: 34, oFont: 28, qLines, qHeight: qLines.length * 34 * 1.32, od, questionCardH: qLines.length * 34 * 1.32 + 112, totalH: H };
             }
 
-            const topY = Math.max(120, Math.round((H - L.totalH) / 2));
+            const topY = Math.max(110, Math.round((H - L.totalH) / 2));
             const questionCardY = topY;
-            const questionTextY = questionCardY + 60;
-            const imgTopY = questionCardY + L.questionCardH + 28;
-            let optY = imgTopY + (imageBuf ? L.imageAreaH : 0);
+            const questionTextY = questionCardY + 56;
+            const imgTopY = questionCardY + L.questionCardH + 22;
+            let optY = imgTopY + (imageBuf ? imageH + 22 : 0);
 
-            // ---------- SVG generation ----------
+            // --- Build SVG ---
             const S = [];
             S.push(`<svg width="${W}" height="${H}" xmlns="http://www.w3.org/2000/svg">`);
-            // Gradients & filters
             S.push(`<defs>
-              <linearGradient id="bgGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+              <linearGradient id="bg" x1="0%" y1="0%" x2="0%" y2="100%">
                 <stop offset="0%" stop-color="#6C5CE7"/>
                 <stop offset="100%" stop-color="#341F97"/>
               </linearGradient>
-              <linearGradient id="cardGrad" x1="0%" y1="0%" x2="100%" y2="100%">
-                <stop offset="0%" stop-color="#FFFFFF"/>
-                <stop offset="100%" stop-color="#F9F9FF"/>
-              </linearGradient>
-              <linearGradient id="accentGrad" x1="0%" y1="0%" x2="100%" y2="0%">
-                <stop offset="0%" stop-color="#FFD600"/>
-                <stop offset="100%" stop-color="#FF9F00"/>
-              </linearGradient>
-              <filter id="cardShadow" x="-5%" y="-5%" width="110%" height="115%">
-                <feDropShadow dx="0" dy="14" stdDeviation="20" flood-color="#000" flood-opacity="0.12"/>
-              </filter>
-              <filter id="pillShadow" x="-5%" y="-5%" width="110%" height="120%">
-                <feDropShadow dx="0" dy="6" stdDeviation="8" flood-color="#000" flood-opacity="0.06"/>
+              <filter id="shadow" x="-20%" y="-20%" width="140%" height="140%">
+                <feDropShadow dx="0" dy="12" stdDeviation="16" flood-color="#000" flood-opacity="0.18"/>
               </filter>
             </defs>`);
 
             // Background
-            S.push(`<rect width="${W}" height="${H}" fill="url(#bgGrad)"/>`);
-            // Subtle diagonal pattern
-            for (let i = 0; i < 24; i++) {
-              S.push(`<line x1="${-50 + i*50}" y1="0" x2="${-50 + i*50 + 1350}" y2="1350" stroke="#ffffff" stroke-opacity="0.04" stroke-width="2"/>`);
+            S.push(`<rect width="${W}" height="${H}" fill="url(#bg)"/>`);
+            // Subtle dots pattern
+            for(let i=0;i<12;i++){
+              S.push(`<circle cx="${120+i*90}" cy="80" r="2.5" fill="#fff" opacity="0.18"/>`);
+              S.push(`<circle cx="${80+i*90}" cy="${H-80}" r="2.5" fill="#fff" opacity="0.18"/>`);
             }
 
-            // Header
-            S.push(`<text x="${PAD_X}" y="68" font-family="'Segoe UI Black', 'Arial Black', sans-serif" font-size="24" font-weight="900" fill="#FFD600" letter-spacing="1">TRIVIA TIME ⚡</text>`);
-            S.push(`<text x="${W - PAD_X}" y="68" font-family="'Segoe UI', Arial, sans-serif" font-size="22" font-weight="700" fill="#ffffff" text-anchor="end">@${escapeXml(q.brand)}</text>`);
+            // Top bar: TRIVIA + brand
+            S.push(`<text x="${PAD_X}" y="78" font-family="Arial Black, Arial, sans-serif" font-size="22" font-weight="800" fill="#FFFFFF" opacity="0.95">TRIVIA TIME ⚡</text>`);
+            S.push(`<text x="${W-PAD_X}" y="78" font-family="Arial, sans-serif" font-size="22" font-weight="700" fill="#FFFFFF" opacity="0.95" text-anchor="end">@${escapeXml(q.brand.replace(/^@/,''))}</text>`);
 
             // Question card
-            S.push(`<rect x="${PAD_X-30}" y="${questionCardY}" width="${W - PAD_X*2 + 60}" height="${L.questionCardH}" rx="30" fill="url(#cardGrad)" filter="url(#cardShadow)"/>`);
-            // Colored left accent bar
-            S.push(`<rect x="${PAD_X-30}" y="${questionCardY}" width="10" height="${L.questionCardH}" rx="5" fill="#6C5CE7"/>`);
-            // Q number pill
-            const qBadgeW = 120, qBadgeH = 48;
-            S.push(`<rect x="${PAD_X}" y="${questionCardY - qBadgeH/2}" width="${qBadgeW}" height="${qBadgeH}" rx="${qBadgeH/2}" fill="url(#accentGrad)"/>`);
-            S.push(`<text x="${PAD_X + qBadgeW/2}" y="${questionCardY - qBadgeH/2 + 34}" font-family="'Segoe UI Black', 'Arial Black', sans-serif" font-size="24" font-weight="900" fill="#1A1A1A" text-anchor="middle">Q ${escapeXml(q.id)}</text>`);
-
+            S.push(`<rect x="${PAD_X-24}" y="${questionCardY}" width="${W-PAD_X*2+48}" height="${L.questionCardH}" rx="28" fill="#FFFFFF" filter="url(#shadow)"/>`);
+            // Q badge
+            S.push(`<rect x="${PAD_X}" y="${questionCardY-22}" width="110" height="44" rx="22" fill="#FFD600"/>`);
+            S.push(`<text x="${PAD_X+55}" y="${questionCardY+8}" font-family="Arial Black, Arial, sans-serif" font-size="22" font-weight="800" fill="#1a1a1a" text-anchor="middle">Q ${escapeXml(q.id)}</text>`);
+            
             // Question text
             L.qLines.forEach((line, i) => {
               const y = questionTextY + i * L.qFont * 1.32;
-              S.push(`<text x="${W/2}" y="${y}" font-family="'Segoe UI', Arial, sans-serif" font-size="${L.qFont}" font-weight="700" fill="#1A1A1A" text-anchor="middle">${escapeXml(line)}</text>`);
+              S.push(`<text x="${W/2}" y="${y}" font-family="Arial, sans-serif" font-size="${L.qFont}" font-weight="800" fill="#1a1a1a" text-anchor="middle">${escapeXml(line)}</text>`);
             });
-
-            // Image placeholder (if any)
-            let imageAreaY = imgTopY;
-            if (imageBuf) {
-              // Transparent rectangle with dashed border
-              S.push(`<rect x="${Math.round((W-imageW)/2)}" y="${imageAreaY}" width="${imageW}" height="${imageH}" rx="16" fill="transparent" stroke="#ffffff" stroke-width="2" stroke-dasharray="8,8" opacity="0.6"/>`);
-            }
 
             // Options
-            L.od.forEach((o, idx) => {
+            L.od.forEach(o => {
               const pillY = optY;
               const pillH = o.pillH;
-              // Pill background
-              S.push(`<rect x="${PAD_X-24}" y="${pillY}" width="${W - PAD_X*2 + 48}" height="${pillH}" rx="20" fill="${o.bg}" filter="url(#pillShadow)"/>`);
+              // Pill
+              S.push(`<rect x="${PAD_X-24}" y="${pillY}" width="${W-PAD_X*2+48}" height="${pillH}" rx="20" fill="${o.color.bg}"/>`);
               // Letter circle
-              const cx = PAD_X + 32;
+              const cx = PAD_X + 28;
               const cy = pillY + pillH/2;
-              S.push(`<circle cx="${cx}" cy="${cy}" r="28" fill="#FFFFFF" stroke="${o.accent}" stroke-width="3"/>`);
-              S.push(`<text x="${cx}" y="${cy + 9}" font-family="'Segoe UI Black', 'Arial Black', sans-serif" font-size="24" font-weight="900" fill="${o.accent}" text-anchor="middle">${o.k}</text>`);
+              S.push(`<circle cx="${cx}" cy="${cy}" r="30" fill="${o.color.accent}"/>`);
+              S.push(`<text x="${cx}" y="${cy+9}" font-family="Arial Black, Arial, sans-serif" font-size="26" font-weight="800" fill="#FFFFFF" text-anchor="middle">${o.k}</text>`);
               // Option text
-              const textStartY = pillY + (pillH - o.lines.length * o.lh) / 2 + o.lh * 0.8;
+              const textStartY = pillY + (pillH - o.lines.length * o.lh) / 2 + o.lh * 0.78;
               o.lines.forEach((line, li) => {
-                S.push(`<text x="${PAD_X + 74}" y="${textStartY + li * o.lh}" font-family="'Segoe UI', Arial, sans-serif" font-size="${L.oFont}" font-weight="600" fill="${o.txt}">${escapeXml(line)}</text>`);
+                S.push(`<text x="${PAD_X+72}" y="${textStartY + li * o.lh}" font-family="Arial, sans-serif" font-size="${L.oFont}" font-weight="700" fill="${o.color.text}">${escapeXml(line)}</text>`);
               });
-              optY += pillH + 20;
+              optY += pillH + 18;
             });
 
-            // CTA
-            const ctaY = optY + 40;
-            S.push(`<text x="${W/2}" y="${ctaY}" font-family="'Segoe UI Black', 'Arial Black', sans-serif" font-size="38" font-weight="900" fill="#FFD600" text-anchor="middle">COMMENT YOUR ANSWER 👇</text>`);
-            S.push(`<text x="${W/2}" y="${ctaY+50}" font-family="'Segoe UI', Arial, sans-serif" font-size="24" font-weight="700" fill="#ffffff" opacity="0.95" text-anchor="middle">A • B • C • D</text>`);
-            // Footer
-            S.push(`<text x="${W/2}" y="${H-32}" font-family="'Segoe UI', Arial, sans-serif" font-size="18" font-weight="600" fill="#ffffff" opacity="0.8" text-anchor="middle">Follow @${escapeXml(q.brand)} for daily trivia</text>`);
+            // Footer CTA
+            const footerY = optY + 28;
+            S.push(`<text x="${W/2}" y="${footerY}" font-family="Arial Black, Arial, sans-serif" font-size="34" font-weight="800" fill="#FFFFFF" text-anchor="middle">COMMENT YOUR ANSWER 👇</text>`);
+            S.push(`<text x="${W/2}" y="${footerY+42}" font-family="Arial, sans-serif" font-size="22" font-weight="700" fill="#FFFFFF" opacity="0.92" text-anchor="middle">A • B • C • D</text>`);
+            S.push(`<text x="${W/2}" y="${H-36}" font-family="Arial, sans-serif" font-size="18" font-weight="600" fill="#FFFFFF" opacity="0.8" text-anchor="middle">Follow @${escapeXml(q.brand.replace(/^@/,''))} for daily trivia</text>`);
 
             S.push('</svg>');
             const svgString = S.join('\n');
 
-            // ---------- Render & composite ----------
-            const safeId = q.id.replace(/[^a-z0-9]/gi, '_');
-            const outFile = path.join(OUT_DIR, `quizv2_${safeId}_${Date.now()}.png`);
+            // --- Compose ---
+            const overlay = await sharp(Buffer.from(svgString)).png().toBuffer();
+            let composite = [{ input: overlay, top: 0, left: 0 }];
 
-            // Render SVG to PNG (no image yet)
-            const svgBuf = await sharp(Buffer.from(svgString)).png().toBuffer();
-
+            // We rendered everything in SVG, so image needs to be composited separately on top of the background but under text - easier: we already left space, now composite the sign image
             if (imageBuf) {
-              // Composite sign image on top of the rendered SVG
               const imgX = Math.round((W - imageW) / 2);
-              await sharp(svgBuf)
-                .composite([{ input: imageBuf, left: imgX, top: imageAreaY }])
-                .png()
-                .toFile(outFile);
-            } else {
-              await sharp(svgBuf).png().toFile(outFile);
+              // Re-render with image baked in: composite image onto a blank, then overlay SVG
+              const base = await sharp({
+                create: { width: W, height: H, channels: 4, background: { r:0,g:0,b:0,alpha:0 } }
+              }).composite([{ input: imageBuf, left: imgX, top: imgTopY }]).png().toBuffer();
+              
+              composite = [
+                { input: base, top: 0, left: 0 },
+                { input: overlay, top: 0, left: 0 }
+              ];
+              // Need a background under it
+              const bg = await sharp({
+                create: { width: W, height: H, channels: 3, background: { r: 108, g: 92, b: 231 } }
+              }).png().toBuffer();
+              
+              const safeId = q.id.replace(/[^a-z0-9]/gi, '_');
+              const outFile = path.join(OUT_DIR, `quiz_${safeId}_${Date.now()}.png`);
+              await sharp(bg).composite(composite).png().toFile(outFile);
+              console.log(`Image created: ${outFile}`);
+              return;
             }
+
+            // No image case
+            const safeId = q.id.replace(/[^a-z0-9]/gi, '_');
+            const outFile = path.join(OUT_DIR, `quiz_${safeId}_${Date.now()}.png`);
+            await sharp({
+              create: { width: W, height: H, channels: 3, background: { r: 108, g: 92, b: 231 } }
+            }).composite(composite).png().toFile(outFile);
 
             console.log(`Image created: ${outFile}`);
           })();
+
+          function escapeXml(s) {
+            return String(s)
+              .replace(/&/g, '&amp;')
+              .replace(/</g, '&lt;')
+              .replace(/>/g, '&gt;')
+              .replace(/"/g, '&quot;')
+              .replace(/'/g, '&#39;');
+          }
           NODESCRIPT
 
       - name: Commit and push image
@@ -307,4 +288,4 @@ jobs:
           git config user.name "GitHub Actions"
           git config user.email "actions@github.com"
           git add perimelight/outputfbimg/
-          git diff --staged --quiet || (git commit -m "Add quiz image v2 Q${{ github.event.inputs.x }}" && git push)
+          git diff --staged --quiet || (git commit -m "Add quiz image Q${{ github.event.inputs.x }}" && git push)
