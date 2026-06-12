@@ -36,250 +36,295 @@ jobs:
         run: |
           node --input-type=commonjs - <<'NODESCRIPT'
           (async () => {
-            const fs = require('fs'),
-                  path = require('path'),
-                  sharp = require('sharp');
+            const fs = require('fs'), path = require('path'), sharp = require('sharp');
 
-            // --- Output settings ---
-            const W = 1080, H = 1350; // 4:5 Facebook feed
-            const OUT_DIR = 'perimelight/outputfbimg';
+            // ── CONSTANTS ──────────────────────────────────────────────────────
+            const W = 1080, H = 1350;
+            const OUT_DIR  = 'perimelight/outputfbimg';
             const SIGNS_DIR = 'perimelight/signs';
             fs.mkdirSync(OUT_DIR, { recursive: true });
 
-            // --- Parse inputs ---
-            const q = {
-              id: process.env.INPUT_X || '1',
-              text: process.env.INPUT_Q || '',
-              opts: {
-                a: process.env.INPUT_A,
-                b: process.env.INPUT_B,
-                c: process.env.INPUT_C,
-                d: process.env.INPUT_D
-              },
-              brand: process.env.INPUT_BRAND || 'perime.rw250'
+            const PAD_X   = 56;
+            const CARD_X  = PAD_X - 16;       // 40px from edge
+            const CARD_W  = W - CARD_X * 2;   // 1000px wide
+            const Q_MAX_W = CARD_W - 44;       // question text area
+            const O_MAX_W = CARD_W - 114;      // option text area (after badge)
+            const HEADER_H = 168, FOOTER_H = 168;
+            const IMG_GAP = 24, OPT_GAP = 14;
+
+            // ── INPUTS ─────────────────────────────────────────────────────────
+            const qId   = (process.env.INPUT_X || '1').trim();
+            const brand = (process.env.INPUT_BRAND || 'perime.rw250').replace(/^@/, '').trim();
+            let   qText = (process.env.INPUT_Q || '').replace(/\r?\n/g, ' ').replace(/\s+/g, ' ').trim();
+            const rawOpts = {
+              a: (process.env.INPUT_A || '').trim(),
+              b: (process.env.INPUT_B || '').trim(),
+              c: (process.env.INPUT_C || '').trim(),
+              d: (process.env.INPUT_D || '').trim()
             };
 
-            // Clean question text
-            let hasImage = /\[image\]/i.test(q.text);
-            if (hasImage) q.text = q.text.replace(/\[image\]/i, '').trim();
+            // ── SIGN IMAGE ──────────────────────────────────────────────────────
+            const hasImg = /\[image\]/i.test(qText);
+            if (hasImg) qText = qText.replace(/\[image\]/i, '').trim();
 
-            // --- Load optional sign image ---
-            const exts = ['.jpg', '.jpeg', '.png', '.webp'];
-            let signPath = null;
-            for (const e of exts) {
-              const p = path.join(SIGNS_DIR, `${q.id}${e}`);
-              if (fs.existsSync(p)) { signPath = p; break; }
-            }
-
-            let imageBuf = null, imageW = 0, imageH = 0;
-            if (hasImage && signPath) {
-              try {
-                const maxImgWidth = Math.floor(W * 0.82);
-                imageBuf = await sharp(signPath)
-                  .resize(maxImgWidth, 420, { fit: 'inside', withoutEnlargement: true })
-                  .png()
-                  .toBuffer();
-                const meta = await sharp(imageBuf).metadata();
-                imageW = meta.width;
-                imageH = meta.height;
-              } catch (e) {
-                console.log('[IMAGE] Failed:', e.message);
-                imageBuf = null;
+            let signBuf = null, signW = 0, signH = 0;
+            if (hasImg) {
+              for (const ext of ['.jpg', '.jpeg', '.png', '.webp']) {
+                const p = path.join(SIGNS_DIR, `${qId}${ext}`);
+                if (!fs.existsSync(p)) continue;
+                try {
+                  signBuf = await sharp(p)
+                    .resize(Math.floor(W * 0.80), 400, { fit: 'inside', withoutEnlargement: true })
+                    .png().toBuffer();
+                  const m = await sharp(signBuf).metadata();
+                  signW = m.width; signH = m.height;
+                } catch (e) { console.warn('[sign]', e.message); signBuf = null; }
+                break;
               }
             }
 
-            // --- Text helpers ---
-            function estimateWidth(t, fontSize) { return t.length * fontSize * 0.55; }
-            function wrapText(text, maxWidth, fontSize) {
+            // ── OPTIONS ─────────────────────────────────────────────────────────
+            const OPT_CFG = {
+              A: { circle: '#FF453A', bg: '#FF453A' },
+              B: { circle: '#0A84FF', bg: '#0A84FF' },
+              C: { circle: '#FFD60A', bg: '#FFD60A' },
+              D: { circle: '#30D158', bg: '#30D158' }
+            };
+            const opts = ['a', 'b', 'c', 'd']
+              .filter(k => rawOpts[k])
+              .map(k => {
+                const K = k.toUpperCase();
+                let t = String(rawOpts[k]).replace(/^[A-D][\.\)\-:\s]+/i, '').trim();
+                if (t && /^[a-z]/.test(t)) t = t[0].toUpperCase() + t.slice(1);
+                return { k: K, t, cfg: OPT_CFG[K] };
+              });
+
+            // ── TEXT UTILITIES ───────────────────────────────────────────────────
+            function charWidth(ch) {
+              if (/[iIl1|!.,;:'`"()\[\]{}\\\/]/.test(ch)) return 0.34;
+              if (/[mwMW@%]/.test(ch))                     return 0.72;
+              if (/[A-Z]/.test(ch))                        return 0.66;
+              if (/[a-z]/.test(ch))                        return 0.52;
+              if (/[0-9]/.test(ch))                        return 0.58;
+              return 0.56;
+            }
+            function textWidth(str, fs) {
+              return [...String(str)].reduce((s, c) => s + charWidth(c) * fs, 0);
+            }
+            function wrapText(text, maxW, fs) {
               const words = String(text).trim().split(/\s+/);
-              const lines = [];
-              let current = '';
+              const lines = []; let cur = '';
               for (const w of words) {
-                const trial = current ? current + ' ' + w : w;
-                if (estimateWidth(trial, fontSize) <= maxWidth) { current = trial; continue; }
-                if (current) lines.push(current);
-                if (estimateWidth(w, fontSize) > maxWidth) {
+                const trial = cur ? cur + ' ' + w : w;
+                if (textWidth(trial, fs) <= maxW) { cur = trial; continue; }
+                if (cur) lines.push(cur);
+                if (textWidth(w, fs) > maxW) {
                   let part = '';
                   for (const ch of w) {
-                    if (estimateWidth(part + ch, fontSize) <= maxWidth) { part += ch; }
+                    if (textWidth(part + ch, fs) <= maxW) part += ch;
                     else { lines.push(part); part = ch; }
                   }
-                  current = part;
-                } else { current = w; }
+                  cur = part;
+                } else cur = w;
               }
-              if (current) lines.push(current);
+              if (cur) lines.push(cur);
               return lines;
             }
 
-            // --- Options with Facebook-friendly colors ---
-            const optColors = {
-              A: { bg: '#FFE8E8', accent: '#FF3B30', text: '#1a1a1a' },
-              B: { bg: '#E8F0FF', accent: '#0A84FF', text: '#1a1a1a' },
-              C: { bg: '#FFF6D6', accent: '#FFB800', text: '#1a1a1a' },
-              D: { bg: '#E6FFF0', accent: '#00C853', text: '#1a1a1a' }
-            };
+            // ── LAYOUT ──────────────────────────────────────────────────────────
+            let qFont = 54, oFont = 38, L = null;
 
-            const opts = ['a','b','c','d'].filter(k => q.opts[k]).map(k => {
-              let t = String(q.opts[k]).replace(/^[A-D][\.\)\-:]\s*/i, '').trim();
-              if (t && /^[a-z]/.test(t)) t = t.charAt(0).toUpperCase() + t.slice(1);
-              const key = k.toUpperCase();
-              return { k: key, t, color: optColors[key] || optColors.A };
-            });
-
-            // --- Layout calculation ---
-            const PAD_X = 84;
-            const Q_MAX_W = W - PAD_X * 2;
-            const O_MAX_W = W - PAD_X * 2 - 90;
-            
-            let qFont = 52, oFont = 36;
-            let L = null;
-
-            for (let i = 0; i < 30; i++) {
-              const qLines = wrapText(q.text, Q_MAX_W, qFont);
-              const qHeight = qLines.length * qFont * 1.32;
+            for (let iter = 0; iter < 40; iter++) {
+              const qLines = wrapText(qText, Q_MAX_W, qFont);
+              const qLH    = qFont * 1.38;
+              const qCardH = qLines.length * qLH + 88;
               const od = opts.map(o => {
-                const ls = wrapText(o.t, O_MAX_W, oFont);
-                const lh = oFont * 1.28;
-                const ph = Math.max(96, ls.length * lh + 36);
-                return { ...o, lines: ls, lh, pillH: ph };
+                const lines = wrapText(o.t, O_MAX_W, oFont);
+                const lh    = oFont * 1.32;
+                const pillH = Math.max(90, lines.length * lh + 48);
+                return { ...o, lines, lh, pillH };
               });
-              const cardPad = 56;
-              const questionCardH = qHeight + cardPad * 2;
-              const optionsH = od.reduce((s,o) => s + o.pillH, 0) + (od.length - 1) * 18;
-              const totalH = 140 + questionCardH + (imageBuf ? imageH + 22 : 22) + optionsH + 140;
-              
-              if (totalH <= H - 20 && qLines.length <= 6 && od.every(o => o.lines.length <= 4)) {
-                L = { qFont, oFont, qLines, qHeight, od, questionCardH, totalH };
+              const signBlock = signBuf ? signH + IMG_GAP * 2 : IMG_GAP;
+              const optsH     = od.reduce((s, o) => s + o.pillH, 0) + (od.length - 1) * OPT_GAP;
+              const totalH    = HEADER_H + qCardH + signBlock + optsH + FOOTER_H;
+
+              if (totalH <= H - 20 && qLines.length <= 6 && od.every(o => o.lines.length <= 3)) {
+                L = { qFont, oFont, qLines, qLH, qCardH, od, signBlock, optsH, totalH };
                 break;
               }
-              if (qLines.length > 4 || qHeight > 320) qFont = Math.max(34, qFont - 2);
-              else oFont = Math.max(28, oFont - 1);
+              if      (qLines.length > 4 && qFont > 34)               qFont -= 2;
+              else if (od.some(o => o.lines.length > 2) && oFont > 26) oFont -= 1;
+              else if (totalH > H - 20 && qFont > 34)                  qFont -= 2;
+              else if (oFont > 26)                                      oFont -= 1;
+              else break;
             }
-            if (!L) {
-              const qLines = wrapText(q.text, Q_MAX_W, 34);
+
+            if (!L) { // hard fallback
+              const qLines = wrapText(qText, Q_MAX_W, 34);
               const od = opts.map(o => {
-                const ls = wrapText(o.t, O_MAX_W, 28);
-                return { ...o, lines: ls, lh: 28*1.28, pillH: Math.max(96, ls.length * 28*1.28 + 36) };
+                const lines = wrapText(o.t, O_MAX_W, 28);
+                return { ...o, lines, lh: 28 * 1.32, pillH: Math.max(90, lines.length * 28 * 1.32 + 48) };
               });
-              L = { qFont: 34, oFont: 28, qLines, qHeight: qLines.length * 34 * 1.32, od, questionCardH: qLines.length * 34 * 1.32 + 112, totalH: H };
+              const signBlock = signBuf ? signH + IMG_GAP * 2 : IMG_GAP;
+              const optsH = od.reduce((s, o) => s + o.pillH, 0) + (od.length - 1) * OPT_GAP;
+              L = { qFont: 34, oFont: 28, qLines, qLH: 34 * 1.38, qCardH: qLines.length * 34 * 1.38 + 88,
+                    od, signBlock, optsH, totalH: H };
             }
 
-            const topY = Math.max(110, Math.round((H - L.totalH) / 2));
-            const questionCardY = topY;
-            const questionTextY = questionCardY + 56;
-            const imgTopY = questionCardY + L.questionCardH + 22;
-            let optY = imgTopY + (imageBuf ? imageH + 22 : 0);
+            // Vertical positions — content block centered
+            const vSlack     = Math.max(0, H - L.totalH);
+            let   cur        = Math.round(vSlack / 2);
+            const headerY    = cur; cur += HEADER_H;
+            const qCardY     = cur; cur += L.qCardH;
+            const signTopY   = cur + IMG_GAP;  cur += L.signBlock;
+            const optsStartY = cur;            cur += L.optsH;
+            const footerY    = cur;
 
-            // --- Build SVG ---
-            const S = [];
-            S.push(`<svg width="${W}" height="${H}" xmlns="http://www.w3.org/2000/svg">`);
-            S.push(`<defs>
-              <linearGradient id="bg" x1="0%" y1="0%" x2="0%" y2="100%">
-                <stop offset="0%" stop-color="#6C5CE7"/>
-                <stop offset="100%" stop-color="#341F97"/>
+            // ── LAYER 1: BACKGROUND SVG (fully opaque) ───────────────────────────
+            const BG_SVG = `<svg width="${W}" height="${H}" xmlns="http://www.w3.org/2000/svg">
+              <defs>
+                <linearGradient id="bg" x1="0" y1="0" x2="0" y2="1">
+                  <stop offset="0%"   stop-color="#1C0540"/>
+                  <stop offset="50%"  stop-color="#130128"/>
+                  <stop offset="100%" stop-color="#090112"/>
+                </linearGradient>
+                <radialGradient id="g1" cx="88%" cy="8%"   r="52%">
+                  <stop offset="0%"   stop-color="#9333EA" stop-opacity="0.45"/>
+                  <stop offset="100%" stop-color="#9333EA" stop-opacity="0"/>
+                </radialGradient>
+                <radialGradient id="g2" cx="12%" cy="85%"  r="50%">
+                  <stop offset="0%"   stop-color="#6D28D9" stop-opacity="0.35"/>
+                  <stop offset="100%" stop-color="#6D28D9" stop-opacity="0"/>
+                </radialGradient>
+                <radialGradient id="g3" cx="55%" cy="100%" r="42%">
+                  <stop offset="0%"   stop-color="#DB2777" stop-opacity="0.28"/>
+                  <stop offset="100%" stop-color="#DB2777" stop-opacity="0"/>
+                </radialGradient>
+              </defs>
+              <rect width="${W}" height="${H}" fill="url(#bg)"/>
+              <rect width="${W}" height="${H}" fill="url(#g1)"/>
+              <rect width="${W}" height="${H}" fill="url(#g2)"/>
+              <rect width="${W}" height="${H}" fill="url(#g3)"/>
+              <circle cx="${W + 90}" cy="-90"     r="380" fill="none" stroke="#9333EA" stroke-width="1.5" stroke-dasharray="8 14" opacity="0.22"/>
+              <circle cx="${W + 90}" cy="-90"     r="290" fill="none" stroke="#A855F7" stroke-width="1"   opacity="0.16"/>
+              <circle cx="-90"      cy="${H + 90}" r="350" fill="none" stroke="#7C3AED" stroke-width="1.5" stroke-dasharray="8 14" opacity="0.20"/>
+              <circle cx="-90"      cy="${H + 90}" r="260" fill="none" stroke="#DB2777" stroke-width="1"   opacity="0.15"/>
+              <circle cx="105"  cy="88"    r="2.5" fill="#fff" opacity="0.30"/>
+              <circle cx="286"  cy="55"    r="1.5" fill="#fff" opacity="0.22"/>
+              <circle cx="532"  cy="41"    r="2"   fill="#fff" opacity="0.28"/>
+              <circle cx="756"  cy="96"    r="1.5" fill="#fff" opacity="0.20"/>
+              <circle cx="948"  cy="66"    r="2.5" fill="#fff" opacity="0.32"/>
+              <circle cx="186"  cy="214"   r="1.5" fill="#fff" opacity="0.18"/>
+              <circle cx="894"  cy="182"   r="2"   fill="#fff" opacity="0.24"/>
+              <circle cx="1036" cy="330"   r="1.5" fill="#fff" opacity="0.20"/>
+              <circle cx="70"   cy="1220"  r="2"   fill="#fff" opacity="0.22"/>
+              <circle cx="279"  cy="1284"  r="1.5" fill="#fff" opacity="0.18"/>
+              <circle cx="519"  cy="1308"  r="2.5" fill="#fff" opacity="0.28"/>
+              <circle cx="816"  cy="1256"  r="1.5" fill="#fff" opacity="0.20"/>
+              <circle cx="990"  cy="1282"  r="2"   fill="#fff" opacity="0.24"/>
+              <circle cx="152"  cy="1048"  r="1.5" fill="#fff" opacity="0.15"/>
+              <circle cx="718"  cy="1154"  r="1.5" fill="#fff" opacity="0.18"/>
+            </svg>`;
+
+            // ── LAYER 3: CONTENT SVG (transparent background) ───────────────────
+            // Sign image (layer 2) composited separately — this SVG has no bg rect,
+            // so the sign shows through the transparent gap between card and options.
+            const C = [];
+            C.push(`<svg width="${W}" height="${H}" xmlns="http://www.w3.org/2000/svg">`);
+            C.push(`<defs>
+              <linearGradient id="brandGr" x1="0" y1="0" x2="1" y2="0">
+                <stop offset="0%"   stop-color="#9333EA"/>
+                <stop offset="100%" stop-color="#EC4899"/>
               </linearGradient>
-              <filter id="shadow" x="-20%" y="-20%" width="140%" height="140%">
-                <feDropShadow dx="0" dy="12" stdDeviation="16" flood-color="#000" flood-opacity="0.18"/>
+              <linearGradient id="cardGr" x1="0" y1="0" x2="0" y2="1">
+                <stop offset="0%"   stop-color="#FFFFFF"/>
+                <stop offset="100%" stop-color="#F3EEFF"/>
+              </linearGradient>
+              <filter id="fCard" x="-8%" y="-8%" width="116%" height="116%">
+                <feDropShadow dx="0" dy="14" stdDeviation="26" flood-color="#000" flood-opacity="0.5"/>
+              </filter>
+              <filter id="fPill" x="-5%" y="-10%" width="110%" height="120%">
+                <feDropShadow dx="0" dy="5" stdDeviation="12" flood-color="#000" flood-opacity="0.28"/>
+              </filter>
+              <filter id="fBadge" x="-20%" y="-20%" width="140%" height="140%">
+                <feDropShadow dx="0" dy="5" stdDeviation="12" flood-color="#9333EA" flood-opacity="0.85"/>
               </filter>
             </defs>`);
 
-            // Background
-            S.push(`<rect width="${W}" height="${H}" fill="url(#bg)"/>`);
-            // Subtle dots pattern
-            for(let i=0;i<12;i++){
-              S.push(`<circle cx="${120+i*90}" cy="80" r="2.5" fill="#fff" opacity="0.18"/>`);
-              S.push(`<circle cx="${80+i*90}" cy="${H-80}" r="2.5" fill="#fff" opacity="0.18"/>`);
-            }
+            // Header: brand label left, @handle right
+            const hTY = headerY + 58;
+            C.push(`<text x="${PAD_X}" y="${hTY}" font-family="Arial Black,Arial,sans-serif" font-size="24" font-weight="900" fill="#FFFFFF" opacity="0.92" letter-spacing="2">TRIVIA TIME</text>`);
+            C.push(`<text x="${W - PAD_X}" y="${hTY}" font-family="Arial,sans-serif" font-size="22" font-weight="700" fill="#FFFFFF" opacity="0.85" text-anchor="end">@${escapeXml(brand)}</text>`);
 
-            // Top bar: TRIVIA + brand
-            S.push(`<text x="${PAD_X}" y="78" font-family="Arial Black, Arial, sans-serif" font-size="22" font-weight="800" fill="#FFFFFF" opacity="0.95">TRIVIA TIME ⚡</text>`);
-            S.push(`<text x="${W-PAD_X}" y="78" font-family="Arial, sans-serif" font-size="22" font-weight="700" fill="#FFFFFF" opacity="0.95" text-anchor="end">@${escapeXml(q.brand.replace(/^@/,''))}</text>`);
+            // Question number badge
+            const BW = 216, BH = 52, BX = (W - BW) / 2, BY = headerY + 86;
+            C.push(`<rect x="${BX}" y="${BY}" width="${BW}" height="${BH}" rx="${BH / 2}" fill="url(#brandGr)" filter="url(#fBadge)"/>`);
+            C.push(`<text x="${W / 2}" y="${BY + BH / 2 + 11}" font-family="Arial Black,Arial,sans-serif" font-size="24" font-weight="900" fill="#FFFFFF" text-anchor="middle">QUESTION  #${escapeXml(qId)}</text>`);
 
             // Question card
-            S.push(`<rect x="${PAD_X-24}" y="${questionCardY}" width="${W-PAD_X*2+48}" height="${L.questionCardH}" rx="28" fill="#FFFFFF" filter="url(#shadow)"/>`);
-            // Q badge
-            S.push(`<rect x="${PAD_X}" y="${questionCardY-22}" width="110" height="44" rx="22" fill="#FFD600"/>`);
-            S.push(`<text x="${PAD_X+55}" y="${questionCardY+8}" font-family="Arial Black, Arial, sans-serif" font-size="22" font-weight="800" fill="#1a1a1a" text-anchor="middle">Q ${escapeXml(q.id)}</text>`);
-            
-            // Question text
+            C.push(`<rect x="${CARD_X}" y="${qCardY}" width="${CARD_W}" height="${L.qCardH}" rx="26" fill="url(#cardGr)" filter="url(#fCard)"/>`);
+            C.push(`<rect x="${CARD_X}" y="${qCardY + 22}" width="9" height="${L.qCardH - 44}" rx="4.5" fill="url(#brandGr)"/>`);
+            const qTX  = CARD_X + 36;
+            const qTY0 = qCardY + 44 + L.qFont * 0.82;
             L.qLines.forEach((line, i) => {
-              const y = questionTextY + i * L.qFont * 1.32;
-              S.push(`<text x="${W/2}" y="${y}" font-family="Arial, sans-serif" font-size="${L.qFont}" font-weight="800" fill="#1a1a1a" text-anchor="middle">${escapeXml(line)}</text>`);
+              C.push(`<text x="${qTX}" y="${qTY0 + i * L.qLH}" font-family="Arial,sans-serif" font-size="${L.qFont}" font-weight="800" fill="#1A0E2E">${escapeXml(line)}</text>`);
             });
 
             // Options
+            let oY = optsStartY;
             L.od.forEach(o => {
-              const pillY = optY;
-              const pillH = o.pillH;
-              // Pill
-              S.push(`<rect x="${PAD_X-24}" y="${pillY}" width="${W-PAD_X*2+48}" height="${pillH}" rx="20" fill="${o.color.bg}"/>`);
-              // Letter circle
-              const cx = PAD_X + 28;
-              const cy = pillY + pillH/2;
-              S.push(`<circle cx="${cx}" cy="${cy}" r="30" fill="${o.color.accent}"/>`);
-              S.push(`<text x="${cx}" y="${cy+9}" font-family="Arial Black, Arial, sans-serif" font-size="26" font-weight="800" fill="#FFFFFF" text-anchor="middle">${o.k}</text>`);
-              // Option text
-              const textStartY = pillY + (pillH - o.lines.length * o.lh) / 2 + o.lh * 0.78;
-              o.lines.forEach((line, li) => {
-                S.push(`<text x="${PAD_X+72}" y="${textStartY + li * o.lh}" font-family="Arial, sans-serif" font-size="${L.oFont}" font-weight="700" fill="${o.color.text}">${escapeXml(line)}</text>`);
+              const { k, lines, lh, pillH, cfg } = o;
+              C.push(`<rect x="${CARD_X}" y="${oY}" width="${CARD_W}" height="${pillH}" rx="22" fill="${cfg.bg}" fill-opacity="0.20" stroke="${cfg.bg}" stroke-opacity="0.45" stroke-width="1.5" filter="url(#fPill)"/>`);
+              const cx = CARD_X + 54, cy = oY + pillH / 2;
+              C.push(`<circle cx="${cx}" cy="${cy}" r="34" fill="${cfg.circle}"/>`);
+              C.push(`<text x="${cx}" y="${cy + 11}" font-family="Arial Black,Arial,sans-serif" font-size="27" font-weight="900" fill="#FFFFFF" text-anchor="middle">${k}</text>`);
+              const tX  = CARD_X + 104;
+              const tY0 = oY + (pillH - lines.length * lh) / 2 + lh * 0.82;
+              lines.forEach((line, li) => {
+                C.push(`<text x="${tX}" y="${tY0 + li * lh}" font-family="Arial,sans-serif" font-size="${L.oFont}" font-weight="700" fill="#FFFFFF">${escapeXml(line)}</text>`);
               });
-              optY += pillH + 18;
+              oY += pillH + OPT_GAP;
             });
 
-            // Footer CTA
-            const footerY = optY + 28;
-            S.push(`<text x="${W/2}" y="${footerY}" font-family="Arial Black, Arial, sans-serif" font-size="34" font-weight="800" fill="#FFFFFF" text-anchor="middle">COMMENT YOUR ANSWER 👇</text>`);
-            S.push(`<text x="${W/2}" y="${footerY+42}" font-family="Arial, sans-serif" font-size="22" font-weight="700" fill="#FFFFFF" opacity="0.92" text-anchor="middle">A • B • C • D</text>`);
-            S.push(`<text x="${W/2}" y="${H-36}" font-family="Arial, sans-serif" font-size="18" font-weight="600" fill="#FFFFFF" opacity="0.8" text-anchor="middle">Follow @${escapeXml(q.brand.replace(/^@/,''))} for daily trivia</text>`);
+            // Footer
+            const ftCy = footerY + 52;
+            C.push(`<text x="${W / 2}" y="${ftCy}" font-family="Arial Black,Arial,sans-serif" font-size="33" font-weight="900" fill="#FFD60A" text-anchor="middle" letter-spacing="1">COMMENT YOUR ANSWER!</text>`);
 
-            S.push('</svg>');
-            const svgString = S.join('\n');
+            const fCols = ['#FF453A', '#0A84FF', '#FFD60A', '#30D158'];
+            const fLets = opts.map(o => o.k);
+            const fSpc  = 108, fLX0 = W / 2 - (fLets.length - 1) * fSpc / 2;
+            fLets.forEach((lt, i) => {
+              const lx = fLX0 + i * fSpc;
+              C.push(`<circle cx="${lx}" cy="${ftCy + 62}" r="36" fill="${fCols[i] || '#9333EA'}"/>`);
+              C.push(`<text x="${lx}" y="${ftCy + 62 + 12}" font-family="Arial Black,Arial,sans-serif" font-size="28" font-weight="900" fill="#FFFFFF" text-anchor="middle">${lt}</text>`);
+            });
+            C.push(`<text x="${W / 2}" y="${ftCy + 122}" font-family="Arial,sans-serif" font-size="21" font-weight="600" fill="#FFFFFF" opacity="0.7" text-anchor="middle">Follow @${escapeXml(brand)} for daily trivia</text>`);
 
-            // --- Compose ---
-            const overlay = await sharp(Buffer.from(svgString)).png().toBuffer();
-            let composite = [{ input: overlay, top: 0, left: 0 }];
+            // Bottom gradient accent bar
+            C.push(`<rect x="${PAD_X * 2}" y="${H - 38}" width="${W - PAD_X * 4}" height="4" rx="2" fill="url(#brandGr)" opacity="0.55"/>`);
 
-            // We rendered everything in SVG, so image needs to be composited separately on top of the background but under text - easier: we already left space, now composite the sign image
-            if (imageBuf) {
-              const imgX = Math.round((W - imageW) / 2);
-              // Re-render with image baked in: composite image onto a blank, then overlay SVG
-              const base = await sharp({
-                create: { width: W, height: H, channels: 4, background: { r:0,g:0,b:0,alpha:0 } }
-              }).composite([{ input: imageBuf, left: imgX, top: imgTopY }]).png().toBuffer();
-              
-              composite = [
-                { input: base, top: 0, left: 0 },
-                { input: overlay, top: 0, left: 0 }
-              ];
-              // Need a background under it
-              const bg = await sharp({
-                create: { width: W, height: H, channels: 3, background: { r: 108, g: 92, b: 231 } }
-              }).png().toBuffer();
-              
-              const safeId = q.id.replace(/[^a-z0-9]/gi, '_');
-              const outFile = path.join(OUT_DIR, `quiz_${safeId}_${Date.now()}.png`);
-              await sharp(bg).composite(composite).png().toFile(outFile);
-              console.log(`Image created: ${outFile}`);
-              return;
+            C.push('</svg>');
+
+            // ── COMPOSITE: bg → sign image → content ────────────────────────────
+            const bgBuf   = await sharp(Buffer.from(BG_SVG)).png().toBuffer();
+            const contBuf = await sharp(Buffer.from(C.join('\n'))).png().toBuffer();
+
+            const layers = [];
+            if (signBuf) {
+              layers.push({ input: signBuf, left: Math.round((W - signW) / 2), top: Math.round(signTopY) });
             }
+            layers.push({ input: contBuf, top: 0, left: 0 });
 
-            // No image case
-            const safeId = q.id.replace(/[^a-z0-9]/gi, '_');
+            const safeId  = qId.replace(/[^a-z0-9]/gi, '_');
             const outFile = path.join(OUT_DIR, `quiz_${safeId}_${Date.now()}.png`);
-            await sharp({
-              create: { width: W, height: H, channels: 3, background: { r: 108, g: 92, b: 231 } }
-            }).composite(composite).png().toFile(outFile);
-
-            console.log(`Image created: ${outFile}`);
+            await sharp(bgBuf).composite(layers).png({ compressionLevel: 8 }).toFile(outFile);
+            console.log(`Generated: ${outFile}`);
           })();
 
           function escapeXml(s) {
             return String(s)
-              .replace(/&/g, '&amp;')
-              .replace(/</g, '&lt;')
-              .replace(/>/g, '&gt;')
-              .replace(/"/g, '&quot;')
-              .replace(/'/g, '&#39;');
+              .replace(/&/g, '&amp;').replace(/</g, '&lt;')
+              .replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/'/g, '&#39;');
           }
           NODESCRIPT
 
