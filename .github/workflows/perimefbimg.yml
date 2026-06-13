@@ -253,7 +253,7 @@ jobs:
 
             // Header: brand label left, @handle right
             const hTY = headerY + 58;
-            C.push(`<text x="${PAD_X}" y="${hTY}" font-family="Arial Black,Arial,sans-serif" font-size="24" font-weight="900" fill="#FFFFFF" opacity="0.92" letter-spacing="2">TRIVIA TIME</text>`);
+            C.push(`<text x="${PAD_X}" y="${hTY}" font-family="Arial Black,Arial,sans-serif" font-size="24" font-weight="900" fill="#FFFFFF" opacity="0.92" letter-spacing="2">IKIBAZO CY'AMATEGEKO Y'UMUHANDA</text>`);
             C.push(`<text x="${W - PAD_X}" y="${hTY}" font-family="Arial,sans-serif" font-size="22" font-weight="700" fill="#FFFFFF" opacity="0.85" text-anchor="end">@${escapeXml(brand)}</text>`);
 
             // Question number badge
@@ -288,7 +288,7 @@ jobs:
 
             // Footer
             const ftCy = footerY + 52;
-            C.push(`<text x="${W / 2}" y="${ftCy}" font-family="Arial Black,Arial,sans-serif" font-size="33" font-weight="900" fill="#FFD60A" text-anchor="middle" letter-spacing="1">COMMENT YOUR ANSWER!</text>`);
+            C.push(`<text x="${W / 2}" y="${ftCy}" font-family="Arial Black,Arial,sans-serif" font-size="33" font-weight="900" fill="#FFD60A" text-anchor="middle" letter-spacing="1">ANDIKA IGISUBIZO CYAWE MURI COMMENT!</text>`);
 
             const fCols = ['#FF453A', '#0A84FF', '#FFD60A', '#30D158'];
             const fLets = opts.map(o => o.k);
@@ -298,7 +298,7 @@ jobs:
               C.push(`<circle cx="${lx}" cy="${ftCy + 62}" r="36" fill="${fCols[i] || '#9333EA'}"/>`);
               C.push(`<text x="${lx}" y="${ftCy + 62 + 12}" font-family="Arial Black,Arial,sans-serif" font-size="28" font-weight="900" fill="#FFFFFF" text-anchor="middle">${lt}</text>`);
             });
-            C.push(`<text x="${W / 2}" y="${ftCy + 122}" font-family="Arial,sans-serif" font-size="21" font-weight="600" fill="#FFFFFF" opacity="0.7" text-anchor="middle">Follow @${escapeXml(brand)} for daily trivia</text>`);
+            C.push(`<text x="${W / 2}" y="${ftCy + 122}" font-family="Arial,sans-serif" font-size="21" font-weight="600" fill="#FFFFFF" opacity="0.7" text-anchor="middle">Follow @${escapeXml(brand)} nimba ushaka kubona ibibazo burimunsi</text>`);
 
             // Bottom gradient accent bar
             C.push(`<rect x="${PAD_X * 2}" y="${H - 38}" width="${W - PAD_X * 4}" height="4" rx="2" fill="url(#brandGr)" opacity="0.55"/>`);
