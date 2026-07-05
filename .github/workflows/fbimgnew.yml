@@ -51,7 +51,7 @@ jobs:
             const SAFE = {
               x: Math.round(W * 0.12),
               y: Math.round(H * 0.15),
-              w: Math.round(W * 0.758),
+              w: Math.round(W * 0.750),
               h: Math.round(H * 0.713)
             };
             const PAD = 24;
