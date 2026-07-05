@@ -49,9 +49,9 @@ jobs:
 
             // ── SAFE ZONE (from your first image) ─────────────────────────────
             const SAFE = {
-              x: Math.round(W * 0.12),
+              x: Math.round(W * 0.16),
               y: Math.round(H * 0.15),
-              w: Math.round(W * 0.740),
+              w: Math.round(W * 0.720),
               h: Math.round(H * 0.713)
             };
             const PAD = 24;
