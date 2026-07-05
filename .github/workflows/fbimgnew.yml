@@ -1,4 +1,4 @@
-name: Generate Quiz Image for facebook
+name: Generate Quiz Image for Facebook
 
 on:
   workflow_dispatch:
@@ -22,6 +22,11 @@ on:
         default: ''
       d:
         description: 'Option D'
+        required: false
+        type: string
+        default: ''
+      e:
+        description: 'Extra box text (yellow)'
         required: false
         type: string
         default: ''
@@ -56,6 +61,7 @@ jobs:
           INPUT_B: ${{ github.event.inputs.b }}
           INPUT_C: ${{ github.event.inputs.c }}
           INPUT_D: ${{ github.event.inputs.d }}
+          INPUT_E: ${{ github.event.inputs.e }}
           INPUT_X: ${{ github.event.inputs.x }}
           INPUT_BRAND: ${{ github.event.inputs.brand }}
         run: |
@@ -90,6 +96,11 @@ jobs:
             const circleRadius = 22;
             const circleFontSize = 20;
             
+            // ─── EXTRA BOX STYLE ──────────────────────────────────────────
+            const extraBoxFill = "#FFF9C4";    // light yellow
+            const extraBoxStroke = "#000000";
+            const extraBoxStrokeWidth = 1;
+            
             // ================================================================
             // ==================== END CONFIGURATION =========================
             // ================================================================
@@ -119,6 +130,7 @@ jobs:
               c: (process.env.INPUT_C || '').trim(),
               d: (process.env.INPUT_D || '').trim()
             };
+            const extraText = (process.env.INPUT_E || '').trim();
 
             // ── OPTIONAL SIGN IMAGE [image] ───────────────────────────────────
             const hasImg = /\[image\]/i.test(qText);
@@ -133,124 +145,142 @@ jobs:
               }
             }
 
-            // ── OPTIONS ───────────────────────────────────────────────────────
+            // ── OPTIONS (clean text) ─────────────────────────────────────────
             const cleanOptionText = (text, optionKey) => {
               const pattern = new RegExp(`^${optionKey.toLowerCase()}\\s*[\\.\\)\\-\\:\\s]+`, 'i');
-              if (pattern.test(text)) {
-                return text.replace(pattern, '').trim();
-              }
+              if (pattern.test(text)) return text.replace(pattern, '').trim();
               const simplePattern = new RegExp(`^${optionKey.toLowerCase()}\\s+`, 'i');
-              if (simplePattern.test(text)) {
-                return text.replace(simplePattern, '').trim();
-              }
-              if (text.toLowerCase() === optionKey.toLowerCase()) {
-                return '';
-              }
+              if (simplePattern.test(text)) return text.replace(simplePattern, '').trim();
+              if (text.toLowerCase() === optionKey.toLowerCase()) return '';
               return text;
             };
 
             const opts = ['a','b','c','d'].filter(k=>rawOpts[k]).map(k => {
               let text = rawOpts[k];
               let cleanText = cleanOptionText(text, k);
-              if (!cleanText || cleanText.length === 0) {
-                cleanText = text;
-              }
+              if (!cleanText || cleanText.length === 0) cleanText = text;
               cleanText = cleanText.charAt(0).toUpperCase() + cleanText.slice(1);
-              return {
-                k: k.toUpperCase(),
-                t: cleanText
-              };
+              return { k: k.toUpperCase(), t: cleanText };
             });
+
+            const hasExtraBox = extraText.length > 0;
 
             // ── TEXT HELPERS ──────────────────────────────────────────────────
             const cw = ch => /[iIl1|!.,;:'`"()\[\]{}\\\/]/.test(ch)?0.34 : /[mwMW@%]/.test(ch)?0.72 : /[A-Z]/.test(ch)?0.66 : /[a-z]/.test(ch)?0.52 : /[0-9]/.test(ch)?0.58 : 0.56;
             const textW = (s,fs)=>[...String(s)].reduce((a,c)=>a+cw(c)*fs,0);
             const wrap = (t,maxW,fs)=>{ const w=String(t).trim().split(/\s+/), L=[]; let c=''; for(const wd of w){ const tr=c?c+' '+wd:wd; if(textW(tr,fs)<=maxW){c=tr;continue} if(c)L.push(c); if(textW(wd,fs)>maxW){let p=''; for(const ch of wd){if(textW(p+ch,fs)<=maxW)p+=ch; else{L.push(p);p=ch}} c=p}else c=wd } if(c)L.push(c); return L };
 
-            // ── AUTO-FIT LOOP ─────────────────────────────────────────────────
-            let qFont = Math.round(CARD_W * qFontMultiplier);
-            let oFont = Math.round(CARD_W * oFontMultiplier);
-            let layout;
-            
+            // ── QUESTION TEXT ─────────────────────────────────────────────────
             let displayText = qText;
-            if (prependQuestionNumber) {
-              displayText = `Q${qId}: ${qText}`;
-            }
-            
-            for(let i=0;i<35;i++){
-              const qLines = wrap(displayText, CARD_W-64, qFont);
-              const qLH = qFont * qLineHeightMultiplier;
-              const oData = opts.map(o=>{ 
-                const ls=wrap(o.t, CARD_W-140, oFont); 
-                const lh=oFont * oLineHeightMultiplier; 
-                const h=Math.max(optionBoxHeight, ls.length*lh+28); 
-                return {...o,ls,lh,h}
-              });
-              const titleH = showTitleText ? 70 : 20;
-              const qH = qLines.length*qLH + 24;
-              const signBlock = signH ? signH + 24 : 0;
-              const optsH = oData.reduce((s,o)=>s+o.h,0) + (oData.length-1)*optionSpacing;
-              const totalH = titleH + qH + signBlock + optsH + 48;
-              if(totalH <= SAFE.h - 40){ 
-                layout={qFont,oFont,qLines,qLH,oData,titleH,qH,signBlock,optsH,totalH}; 
-                break 
+            if (prependQuestionNumber) displayText = `Q${qId}: ${qText}`;
+
+            // ── AUTO-FIT LOOP (with fallback for extra box) ───────────────────
+            let layout = null;
+            for (let attempt = 0; attempt < 2; attempt++) {
+              if (attempt === 1 && !hasExtraBox) break;   // only second attempt if extra was present
+              const tryExtra = (attempt === 0) ? hasExtraBox : false;   // try with extra on first pass
+              let qFont = Math.round(CARD_W * qFontMultiplier);
+              let oFont = Math.round(CARD_W * oFontMultiplier);
+              for (let i = 0; i < 35; i++) {
+                const qLines = wrap(displayText, CARD_W - 64, qFont);
+                const qLH = qFont * qLineHeightMultiplier;
+                const oData = opts.map(o => {
+                  const ls = wrap(o.t, CARD_W - 140, oFont);
+                  const lh = oFont * oLineHeightMultiplier;
+                  const h = Math.max(optionBoxHeight, ls.length * lh + 28);
+                  return { ...o, ls, lh, h };
+                });
+
+                // extra box calculation (if applicable for this attempt)
+                let extraData = null;
+                if (tryExtra) {
+                  const maxW = CARD_W - 80;   // no circle, so wider text area
+                  const extraLines = wrap(extraText, maxW, oFont);
+                  const extraLH = oFont * oLineHeightMultiplier;
+                  const extraH = Math.max(optionBoxHeight, extraLines.length * extraLH + 28);
+                  extraData = { ls: extraLines, lh: extraLH, h: extraH };
+                }
+
+                const titleH = showTitleText ? 70 : 20;
+                const qH = qLines.length * qLH + 24;
+                const signBlock = signH ? signH + 24 : 0;
+                const optsH = oData.reduce((s, o) => s + o.h, 0) + (oData.length - 1) * optionSpacing;
+                const extraBlock = extraData ? optionSpacing + extraData.h : 0;
+                const totalH = titleH + qH + signBlock + optsH + extraBlock + 48;
+
+                if (totalH <= SAFE.h - 40) {
+                  layout = { qFont, oFont, qLines, qLH, oData, titleH, qH, signBlock, optsH, extraData, totalH, tryExtra };
+                  break;
+                }
+
+                // reduce font sizes
+                if (qLines.length > 3 && qFont > 28) qFont -= 2;
+                else if (oFont > 22) oFont -= 1;
+                else qFont -= 1;
               }
-              if(qLines.length>3 && qFont>28) qFont-=2; 
-              else if(oFont>22) oFont-=1; 
-              else qFont-=1;
+              if (layout) break;   // fitted successfully
             }
-            if(!layout) throw new Error('Text too long for safe zone');
+
+            if (!layout) throw new Error('Text too long for safe zone');
 
             const CARD_H = Math.min(layout.totalH, SAFE.h - 20);
 
             // ── BUILD CARD SVG ────────────────────────────────────────────────
-            const C=[];
+            const C = [];
             C.push(`<svg width="${CARD_W}" height="${CARD_H}" xmlns="http://www.w3.org/2000/svg">`);
             C.push(`<rect x="0" y="0" width="${CARD_W}" height="${CARD_H}" rx="26" fill="#FFFFFF00" stroke="#FFFFFF00" stroke-width="2"/>`);
-            
+
             if (showTitleText) {
               C.push(`<text x="32" y="48" font-family="Arial,Helvetica,sans-serif" font-size="26" font-weight="700" fill="#1565C0">Ikibazo cya ${escapeXml(qId)}</text>`);
             }
-            
+
             let y = layout.titleH + 8;
-            layout.qLines.forEach((ln, i)=>{ 
-              C.push(`<text x="32" y="${y + i*layout.qLH}" font-family="Arial,Helvetica,sans-serif" font-size="${layout.qFont}" font-weight="700" fill="#1E1E1E">${escapeXml(ln)}</text>`); 
+            layout.qLines.forEach((ln, i) => {
+              C.push(`<text x="32" y="${y + i * layout.qLH}" font-family="Arial,Helvetica,sans-serif" font-size="${layout.qFont}" font-weight="700" fill="#1E1E1E">${escapeXml(ln)}</text>`);
             });
             y += layout.qH;
-            
             y += layout.signBlock;
-            
-            layout.oData.forEach(o=>{
-              C.push(`<rect x="24" y="${y}" width="${CARD_W-48}" height="${o.h}" rx="16" fill="#FFFFFF" stroke="#E0E0E0" stroke-width="1.5"/>`);
-              C.push(`<circle cx="60" cy="${y+o.h/2}" r="${circleRadius}" fill="#E3F2FD"/>`);
-              C.push(`<text x="60" y="${y+o.h/2+7}" font-family="Arial Black,Arial,sans-serif" font-size="${circleFontSize}" font-weight="900" fill="#1565C0" text-anchor="middle">${o.k}</text>`);
-              o.ls.forEach((ln,li)=>{ 
-                C.push(`<text x="100" y="${y + (o.h - o.ls.length*o.lh)/2 + o.lh*0.8 + li*o.lh}" font-family="Arial,Helvetica,sans-serif" font-size="${layout.oFont}" fill="#212121">${escapeXml(ln)}</text>`); 
+
+            // Regular option boxes (with circle)
+            layout.oData.forEach(o => {
+              C.push(`<rect x="24" y="${y}" width="${CARD_W - 48}" height="${o.h}" rx="16" fill="#FFFFFF" stroke="#E0E0E0" stroke-width="1.5"/>`);
+              C.push(`<circle cx="60" cy="${y + o.h / 2}" r="${circleRadius}" fill="#E3F2FD"/>`);
+              C.push(`<text x="60" y="${y + o.h / 2 + 7}" font-family="Arial Black,Arial,sans-serif" font-size="${circleFontSize}" font-weight="900" fill="#1565C0" text-anchor="middle">${o.k}</text>`);
+              o.ls.forEach((ln, li) => {
+                C.push(`<text x="100" y="${y + (o.h - o.ls.length * o.lh) / 2 + o.lh * 0.8 + li * o.lh}" font-family="Arial,Helvetica,sans-serif" font-size="${layout.oFont}" fill="#212121">${escapeXml(ln)}</text>`);
               });
               y += o.h + optionSpacing;
             });
+
+            // Extra yellow box (if it survived the fit)
+            if (layout.extraData) {
+              const e = layout.extraData;
+              C.push(`<rect x="24" y="${y}" width="${CARD_W - 48}" height="${e.h}" rx="16" fill="${extraBoxFill}" stroke="${extraBoxStroke}" stroke-width="${extraBoxStrokeWidth}"/>`);
+              e.ls.forEach((ln, li) => {
+                C.push(`<text x="48" y="${y + (e.h - e.ls.length * e.lh) / 2 + e.lh * 0.8 + li * e.lh}" font-family="Arial,Helvetica,sans-serif" font-size="${layout.oFont}" fill="#000000">${escapeXml(ln)}</text>`);
+              });
+              y += e.h + optionSpacing; // (not strictly needed, but keeps consistent)
+            }
+
             C.push(`</svg>`);
 
             const cardBuf = await sharp(Buffer.from(C.join('\n'))).png().toBuffer();
-            
-            // CRITICAL FIX: Round all coordinate values to integers
-            const left = Math.round(SAFE.x + (SAFE.w - CARD_W) / 2);
-            const top = Math.round(SAFE.y + (SAFE.h - CARD_H) / 2);
+            const left = SAFE.x + Math.round((SAFE.w - CARD_W) / 2);
+            const top = SAFE.y + Math.round((SAFE.h - CARD_H) / 2);
 
-            const composites = [{ input: cardBuf, left: left, top: top }];
+            const composites = [{ input: cardBuf, left, top }];
             if (signBuf) {
-              const signTop = Math.round(top + layout.titleH + layout.qH + 12);
-              const signLeft = Math.round(left + (CARD_W - signW) / 2);
-              composites.push({ input: signBuf, left: signLeft, top: signTop });
+              const signTop = top + layout.titleH + layout.qH + 12;
+              composites.push({ input: signBuf, left: left + Math.round((CARD_W - signW) / 2), top: signTop });
             }
 
-            const safeId = qId.replace(/[^a-z0-9]/gi,'_');
+            const safeId = qId.replace(/[^a-z0-9]/gi, '_');
             const outFile = path.join(OUT_DIR, `quiz_${safeId}_${Date.now()}.png`);
-            await base.composite(composites).png({compressionLevel:9}).toFile(outFile);
+            await base.composite(composites).png({ compressionLevel: 9 }).toFile(outFile);
             console.log('Generated:', outFile);
           })();
 
-          function escapeXml(s){return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#39;')}
+          function escapeXml(s) { return String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/'/g, '&#39;'); }
           NODESCRIPT
 
       - name: Commit and push image
