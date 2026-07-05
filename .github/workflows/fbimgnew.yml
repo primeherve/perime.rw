@@ -134,40 +134,27 @@ jobs:
             }
 
             // ── OPTIONS ───────────────────────────────────────────────────────
-            // Function to clean option text - only remove actual option prefix if it's at the start
-            // and followed by a separator, but keep the text content
             const cleanOptionText = (text, optionKey) => {
-              // Remove ONLY if the text starts with the option letter followed by separator
-              // But keep the content if it starts with a letter that's part of the actual text
               const pattern = new RegExp(`^${optionKey.toLowerCase()}\\s*[\\.\\)\\-\\:\\s]+`, 'i');
-              // Only strip if the text starts with the option letter and a separator
               if (pattern.test(text)) {
                 return text.replace(pattern, '').trim();
               }
-              // Also check if it starts with just the letter and a space
               const simplePattern = new RegExp(`^${optionKey.toLowerCase()}\\s+`, 'i');
               if (simplePattern.test(text)) {
                 return text.replace(simplePattern, '').trim();
               }
-              // If the text is just the letter alone, return empty
               if (text.toLowerCase() === optionKey.toLowerCase()) {
                 return '';
               }
-              // For cases like "A na C", keep the text as is
               return text;
             };
 
             const opts = ['a','b','c','d'].filter(k=>rawOpts[k]).map(k => {
               let text = rawOpts[k];
-              // Clean the text
               let cleanText = cleanOptionText(text, k);
-              // If after cleaning we have a capital letter followed by "na" or similar,
-              // keep it as is (it's part of the actual content)
               if (!cleanText || cleanText.length === 0) {
-                // If text was just the letter and nothing else, use a default
                 cleanText = text;
               }
-              // Capitalize first letter of the option text
               cleanText = cleanText.charAt(0).toUpperCase() + cleanText.slice(1);
               return {
                 k: k.toUpperCase(),
@@ -245,13 +232,16 @@ jobs:
             C.push(`</svg>`);
 
             const cardBuf = await sharp(Buffer.from(C.join('\n'))).png().toBuffer();
-            const left = SAFE.x + Math.round((SAFE.w - CARD_W)/2);
-            const top = SAFE.y + Math.round((SAFE.h - CARD_H)/2);
+            
+            // CRITICAL FIX: Round all coordinate values to integers
+            const left = Math.round(SAFE.x + (SAFE.w - CARD_W) / 2);
+            const top = Math.round(SAFE.y + (SAFE.h - CARD_H) / 2);
 
-            const composites = [{ input: cardBuf, left, top }];
+            const composites = [{ input: cardBuf, left: left, top: top }];
             if (signBuf) {
-              const signTop = top + layout.titleH + layout.qH + 12;
-              composites.push({ input: signBuf, left: left + Math.round((CARD_W - signW)/2), top: signTop });
+              const signTop = Math.round(top + layout.titleH + layout.qH + 12);
+              const signLeft = Math.round(left + (CARD_W - signW) / 2);
+              composites.push({ input: signBuf, left: signLeft, top: signTop });
             }
 
             const safeId = qId.replace(/[^a-z0-9]/gi,'_');
