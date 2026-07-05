@@ -81,12 +81,12 @@ jobs:
             // ─── FONT SIZE CONFIGURATION ──────────────────────────────────
             const qFontMultiplier = 0.05;
             const oFontMultiplier = 0.047;
-            const extraFontMultiplier = 0.05;   // own font size for extra box
+            const extraFontMultiplier = 0.052;        // own font size for extra box
             
             // ─── LINE HEIGHT CONFIGURATION ────────────────────────────────
             const qLineHeightMultiplier = 1.2;
             const oLineHeightMultiplier = 1.15;
-            const extraLineHeightMultiplier = 1.25;   // slightly more for bold
+            const extraLineHeightMultiplier = 1.25;
             
             // ─── TITLE DISPLAY CONFIGURATION ──────────────────────────────
             const showTitleText = false;
@@ -98,12 +98,16 @@ jobs:
             const circleRadius = 22;
             const circleFontSize = 20;
             
-            // ─── EXTRA BOX STYLE ──────────────────────────────────────────
-            const extraBoxFill = "#FFF9C4";    // light yellow
+            // ─── EXTRA BOX STYLE & SPACING ────────────────────────────────
+            const extraBoxFill = "#FFF9C4";
             const extraBoxStroke = "#000000";
             const extraBoxStrokeWidth = 1;
-            // minimum free space (px) required to show the extra box
-            const minFreeSpaceForExtra = 120;   // safe margin
+            const maxExtraGap = 48;        // maximum gap between last option and extra box
+            const minExtraGap = optionSpacing;   // falls back to option spacing
+            
+            // ─── SAFE ZONE MARGINS ────────────────────────────────────────
+            const TOP_OFFSET = 0;          // card top = SAFE.y + TOP_OFFSET (fixed)
+            const BOTTOM_MARGIN = 40;      // minimum space below card inside safe zone
             
             // ================================================================
             // ==================== END CONFIGURATION =========================
@@ -124,6 +128,7 @@ jobs:
             };
             const PAD = 24;
             const CARD_W = SAFE.w - PAD * 2;
+            const MAX_AVAILABLE_H = SAFE.h - BOTTOM_MARGIN;
 
             // ── INPUTS ────────────────────────────────────────────────────────
             const qId = (process.env.INPUT_X || '1').trim();
@@ -177,7 +182,7 @@ jobs:
             let displayText = qText;
             if (prependQuestionNumber) displayText = `Q${qId}: ${qText}`;
 
-            // ── FIT QUESTION + OPTIONS ONLY (no extra box yet) ────────────────
+            // ── 1. FIT BASE LAYOUT (question + options + sign) ────────────────
             let qFont = Math.round(CARD_W * qFontMultiplier);
             let oFont = Math.round(CARD_W * oFontMultiplier);
             let baseLayout = null;
@@ -194,10 +199,10 @@ jobs:
               const qH = qLines.length * qLH + 24;
               const signBlock = signH ? signH + 24 : 0;
               const optsH = oData.reduce((s, o) => s + o.h, 0) + (oData.length - 1) * optionSpacing;
-              const totalH = titleH + qH + signBlock + optsH + 48;   // padding bottom
+              const baseTotalH = titleH + qH + signBlock + optsH + 48;   // bottom padding inside card
 
-              if (totalH <= SAFE.h - 40) {
-                baseLayout = { qFont, oFont, qLines, qLH, oData, titleH, qH, signBlock, optsH, totalH };
+              if (baseTotalH <= MAX_AVAILABLE_H) {
+                baseLayout = { qFont, oFont, qLines, qLH, oData, titleH, qH, signBlock, optsH, baseTotalH };
                 break;
               }
               // reduce fonts to fit
@@ -205,31 +210,43 @@ jobs:
               else if (oFont > 22) oFont -= 1;
               else qFont -= 1;
             }
-            if (!baseLayout) throw new Error('Text too long for safe zone');
+            if (!baseLayout) throw new Error('Content too long for safe zone (base layout).');
 
-            // ── CHECK IF EXTRA BOX CAN BE ADDED WITH SPARE SPACE ─────────────
+            // ── 2. EXTRA BOX (only if text provided and space allows) ─────────
             let extraData = null;
+            let extraGap = 0;
             if (hasExtraText) {
-              const availableSpace = SAFE.h - 40 - baseLayout.totalH;
-              if (availableSpace >= minFreeSpaceForExtra) {
-                const extraFont = Math.round(CARD_W * extraFontMultiplier);
-                const maxW = CARD_W - 80;   // no circle, wider text area
-                const extraLines = wrap(extraText, maxW, extraFont);
-                const extraLH = extraFont * extraLineHeightMultiplier;
-                const extraH = Math.max(optionBoxHeight, extraLines.length * extraLH + 28);
-                // check if extra box actually fits in the available space (with spacing)
-                if (availableSpace >= extraH + optionSpacing) {
-                  extraData = { ls: extraLines, lh: extraLH, h: extraH, font: extraFont };
+              const extraFont = Math.round(CARD_W * extraFontMultiplier);
+              const maxW = CARD_W - 80;
+              const extraLines = wrap(extraText, maxW, extraFont);
+              const extraLH = extraFont * extraLineHeightMultiplier;
+              const extraH = Math.max(optionBoxHeight, extraLines.length * extraLH + 28);
+
+              // Try max gap first, then min gap
+              let gap = maxExtraGap;
+              if (baseLayout.baseTotalH + gap + extraH > MAX_AVAILABLE_H) {
+                gap = minExtraGap;
+                if (baseLayout.baseTotalH + gap + extraH > MAX_AVAILABLE_H) {
+                  gap = 0;   // cannot fit even with min gap → skip extra box
                 }
+              }
+
+              if (gap > 0) {
+                extraGap = gap;
+                extraData = { ls: extraLines, lh: extraLH, h: extraH, font: extraFont };
               }
             }
 
-            // ── BUILD FINAL LAYOUT ────────────────────────────────────────────
-            const extraBlock = extraData ? optionSpacing + extraData.h : 0;
-            const finalTotalH = baseLayout.totalH + extraBlock;
-            const CARD_H = Math.round(Math.min(finalTotalH, SAFE.h - 20));
+            // ── 3. BUILD FINAL CARD DIMENSIONS ──────────────────────────────
+            const extraBlock = extraData ? extraGap + extraData.h : 0;
+            const totalCardH = baseLayout.baseTotalH + extraBlock;
+            const CARD_H = Math.min(totalCardH, MAX_AVAILABLE_H);
 
-            // ── BUILD CARD SVG ────────────────────────────────────────────────
+            // Fixed top position – always start at top of safe zone (plus offset)
+            const cardTop = SAFE.y + TOP_OFFSET;
+            const cardLeft = Math.round(SAFE.x + (SAFE.w - CARD_W) / 2);
+
+            // ── 4. BUILD CARD SVG ────────────────────────────────────────────
             const C = [];
             C.push(`<svg width="${CARD_W}" height="${CARD_H}" xmlns="http://www.w3.org/2000/svg">`);
             C.push(`<rect x="0" y="0" width="${CARD_W}" height="${CARD_H}" rx="26" fill="#FFFFFF00" stroke="#FFFFFF00" stroke-width="2"/>`);
@@ -256,26 +273,26 @@ jobs:
               y += o.h + optionSpacing;
             });
 
-            // Extra yellow box (only if it could be added)
+            // Extra yellow box (with variable gap)
             if (extraData) {
+              y += extraGap - optionSpacing;   // we already added optionSpacing after last option; adjust to desired gap
               const e = extraData;
               C.push(`<rect x="24" y="${y}" width="${CARD_W - 48}" height="${e.h}" rx="16" fill="${extraBoxFill}" stroke="${extraBoxStroke}" stroke-width="${extraBoxStrokeWidth}"/>`);
               e.ls.forEach((ln, li) => {
                 C.push(`<text x="48" y="${y + (e.h - e.ls.length * e.lh) / 2 + e.lh * 0.8 + li * e.lh}" font-family="Arial,Helvetica,sans-serif" font-size="${e.font}" font-weight="bold" fill="#000000">${escapeXml(ln)}</text>`);
               });
-              y += e.h + optionSpacing; // not strictly needed but keeps consistency
+              // y not needed further
             }
 
             C.push(`</svg>`);
 
+            // ── 5. COMPOSITE ONTO OVERLAY ───────────────────────────────────
             const cardBuf = await sharp(Buffer.from(C.join('\n'))).png().toBuffer();
-            const left = Math.round(SAFE.x + (SAFE.w - CARD_W) / 2);
-            const top = Math.round(SAFE.y + (SAFE.h - CARD_H) / 2);
 
-            const composites = [{ input: cardBuf, left, top }];
+            const composites = [{ input: cardBuf, left: cardLeft, top: cardTop }];
             if (signBuf) {
-              const signTop = Math.round(top + baseLayout.titleH + baseLayout.qH + 12);
-              const signLeft = Math.round(left + (CARD_W - signW) / 2);
+              const signTop = Math.round(cardTop + baseLayout.titleH + baseLayout.qH + 12);
+              const signLeft = Math.round(cardLeft + (CARD_W - signW) / 2);
               composites.push({ input: signBuf, left: signLeft, top: signTop });
             }
 
