@@ -223,7 +223,7 @@ jobs:
 
             if (!layout) throw new Error('Text too long for safe zone');
 
-            const CARD_H = Math.min(layout.totalH, SAFE.h - 20);
+            const CARD_H = Math.round(Math.min(layout.totalH, SAFE.h - 20));
 
             // ── BUILD CARD SVG ────────────────────────────────────────────────
             const C = [];
@@ -259,19 +259,20 @@ jobs:
               e.ls.forEach((ln, li) => {
                 C.push(`<text x="48" y="${y + (e.h - e.ls.length * e.lh) / 2 + e.lh * 0.8 + li * e.lh}" font-family="Arial,Helvetica,sans-serif" font-size="${layout.oFont}" fill="#000000">${escapeXml(ln)}</text>`);
               });
-              y += e.h + optionSpacing; // (not strictly needed, but keeps consistent)
+              y += e.h + optionSpacing;
             }
 
             C.push(`</svg>`);
 
             const cardBuf = await sharp(Buffer.from(C.join('\n'))).png().toBuffer();
-            const left = SAFE.x + Math.round((SAFE.w - CARD_W) / 2);
-            const top = SAFE.y + Math.round((SAFE.h - CARD_H) / 2);
+            const left = Math.round(SAFE.x + (SAFE.w - CARD_W) / 2);
+            const top = Math.round(SAFE.y + (SAFE.h - CARD_H) / 2);
 
             const composites = [{ input: cardBuf, left, top }];
             if (signBuf) {
-              const signTop = top + layout.titleH + layout.qH + 12;
-              composites.push({ input: signBuf, left: left + Math.round((CARD_W - signW) / 2), top: signTop });
+              const signTop = Math.round(top + layout.titleH + layout.qH + 12);
+              const signLeft = Math.round(left + (CARD_W - signW) / 2);
+              composites.push({ input: signBuf, left: signLeft, top: signTop });
             }
 
             const safeId = qId.replace(/[^a-z0-9]/gi, '_');
