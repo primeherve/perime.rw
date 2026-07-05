@@ -81,7 +81,7 @@ jobs:
             // ─── FONT SIZE CONFIGURATION ──────────────────────────────────
             const qFontMultiplier = 0.05;
             const oFontMultiplier = 0.047;
-            const extraFontMultiplier = 0.052;   // own font size for extra box
+            const extraFontMultiplier = 0.05;   // own font size for extra box
             
             // ─── LINE HEIGHT CONFIGURATION ────────────────────────────────
             const qLineHeightMultiplier = 1.2;
