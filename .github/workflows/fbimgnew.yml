@@ -81,10 +81,12 @@ jobs:
             // ─── FONT SIZE CONFIGURATION ──────────────────────────────────
             const qFontMultiplier = 0.05;
             const oFontMultiplier = 0.047;
+            const extraFontMultiplier = 0.052;   // own font size for extra box
             
             // ─── LINE HEIGHT CONFIGURATION ────────────────────────────────
             const qLineHeightMultiplier = 1.2;
             const oLineHeightMultiplier = 1.15;
+            const extraLineHeightMultiplier = 1.25;   // slightly more for bold
             
             // ─── TITLE DISPLAY CONFIGURATION ──────────────────────────────
             const showTitleText = false;
@@ -100,6 +102,8 @@ jobs:
             const extraBoxFill = "#FFF9C4";    // light yellow
             const extraBoxStroke = "#000000";
             const extraBoxStrokeWidth = 1;
+            // minimum free space (px) required to show the extra box
+            const minFreeSpaceForExtra = 120;   // safe margin
             
             // ================================================================
             // ==================== END CONFIGURATION =========================
@@ -131,6 +135,7 @@ jobs:
               d: (process.env.INPUT_D || '').trim()
             };
             const extraText = (process.env.INPUT_E || '').trim();
+            const hasExtraText = extraText.length > 0;
 
             // ── OPTIONAL SIGN IMAGE [image] ───────────────────────────────────
             const hasImg = /\[image\]/i.test(qText);
@@ -163,8 +168,6 @@ jobs:
               return { k: k.toUpperCase(), t: cleanText };
             });
 
-            const hasExtraBox = extraText.length > 0;
-
             // ── TEXT HELPERS ──────────────────────────────────────────────────
             const cw = ch => /[iIl1|!.,;:'`"()\[\]{}\\\/]/.test(ch)?0.34 : /[mwMW@%]/.test(ch)?0.72 : /[A-Z]/.test(ch)?0.66 : /[a-z]/.test(ch)?0.52 : /[0-9]/.test(ch)?0.58 : 0.56;
             const textW = (s,fs)=>[...String(s)].reduce((a,c)=>a+cw(c)*fs,0);
@@ -174,56 +177,57 @@ jobs:
             let displayText = qText;
             if (prependQuestionNumber) displayText = `Q${qId}: ${qText}`;
 
-            // ── AUTO-FIT LOOP (with fallback for extra box) ───────────────────
-            let layout = null;
-            for (let attempt = 0; attempt < 2; attempt++) {
-              if (attempt === 1 && !hasExtraBox) break;   // only second attempt if extra was present
-              const tryExtra = (attempt === 0) ? hasExtraBox : false;   // try with extra on first pass
-              let qFont = Math.round(CARD_W * qFontMultiplier);
-              let oFont = Math.round(CARD_W * oFontMultiplier);
-              for (let i = 0; i < 35; i++) {
-                const qLines = wrap(displayText, CARD_W - 64, qFont);
-                const qLH = qFont * qLineHeightMultiplier;
-                const oData = opts.map(o => {
-                  const ls = wrap(o.t, CARD_W - 140, oFont);
-                  const lh = oFont * oLineHeightMultiplier;
-                  const h = Math.max(optionBoxHeight, ls.length * lh + 28);
-                  return { ...o, ls, lh, h };
-                });
+            // ── FIT QUESTION + OPTIONS ONLY (no extra box yet) ────────────────
+            let qFont = Math.round(CARD_W * qFontMultiplier);
+            let oFont = Math.round(CARD_W * oFontMultiplier);
+            let baseLayout = null;
+            for (let i = 0; i < 35; i++) {
+              const qLines = wrap(displayText, CARD_W - 64, qFont);
+              const qLH = qFont * qLineHeightMultiplier;
+              const oData = opts.map(o => {
+                const ls = wrap(o.t, CARD_W - 140, oFont);
+                const lh = oFont * oLineHeightMultiplier;
+                const h = Math.max(optionBoxHeight, ls.length * lh + 28);
+                return { ...o, ls, lh, h };
+              });
+              const titleH = showTitleText ? 70 : 20;
+              const qH = qLines.length * qLH + 24;
+              const signBlock = signH ? signH + 24 : 0;
+              const optsH = oData.reduce((s, o) => s + o.h, 0) + (oData.length - 1) * optionSpacing;
+              const totalH = titleH + qH + signBlock + optsH + 48;   // padding bottom
 
-                // extra box calculation (if applicable for this attempt)
-                let extraData = null;
-                if (tryExtra) {
-                  const maxW = CARD_W - 80;   // no circle, so wider text area
-                  const extraLines = wrap(extraText, maxW, oFont);
-                  const extraLH = oFont * oLineHeightMultiplier;
-                  const extraH = Math.max(optionBoxHeight, extraLines.length * extraLH + 28);
-                  extraData = { ls: extraLines, lh: extraLH, h: extraH };
-                }
-
-                const titleH = showTitleText ? 70 : 20;
-                const qH = qLines.length * qLH + 24;
-                const signBlock = signH ? signH + 24 : 0;
-                const optsH = oData.reduce((s, o) => s + o.h, 0) + (oData.length - 1) * optionSpacing;
-                const extraBlock = extraData ? optionSpacing + extraData.h : 0;
-                const totalH = titleH + qH + signBlock + optsH + extraBlock + 48;
-
-                if (totalH <= SAFE.h - 40) {
-                  layout = { qFont, oFont, qLines, qLH, oData, titleH, qH, signBlock, optsH, extraData, totalH, tryExtra };
-                  break;
-                }
-
-                // reduce font sizes
-                if (qLines.length > 3 && qFont > 28) qFont -= 2;
-                else if (oFont > 22) oFont -= 1;
-                else qFont -= 1;
+              if (totalH <= SAFE.h - 40) {
+                baseLayout = { qFont, oFont, qLines, qLH, oData, titleH, qH, signBlock, optsH, totalH };
+                break;
               }
-              if (layout) break;   // fitted successfully
+              // reduce fonts to fit
+              if (qLines.length > 3 && qFont > 28) qFont -= 2;
+              else if (oFont > 22) oFont -= 1;
+              else qFont -= 1;
+            }
+            if (!baseLayout) throw new Error('Text too long for safe zone');
+
+            // ── CHECK IF EXTRA BOX CAN BE ADDED WITH SPARE SPACE ─────────────
+            let extraData = null;
+            if (hasExtraText) {
+              const availableSpace = SAFE.h - 40 - baseLayout.totalH;
+              if (availableSpace >= minFreeSpaceForExtra) {
+                const extraFont = Math.round(CARD_W * extraFontMultiplier);
+                const maxW = CARD_W - 80;   // no circle, wider text area
+                const extraLines = wrap(extraText, maxW, extraFont);
+                const extraLH = extraFont * extraLineHeightMultiplier;
+                const extraH = Math.max(optionBoxHeight, extraLines.length * extraLH + 28);
+                // check if extra box actually fits in the available space (with spacing)
+                if (availableSpace >= extraH + optionSpacing) {
+                  extraData = { ls: extraLines, lh: extraLH, h: extraH, font: extraFont };
+                }
+              }
             }
 
-            if (!layout) throw new Error('Text too long for safe zone');
-
-            const CARD_H = Math.round(Math.min(layout.totalH, SAFE.h - 20));
+            // ── BUILD FINAL LAYOUT ────────────────────────────────────────────
+            const extraBlock = extraData ? optionSpacing + extraData.h : 0;
+            const finalTotalH = baseLayout.totalH + extraBlock;
+            const CARD_H = Math.round(Math.min(finalTotalH, SAFE.h - 20));
 
             // ── BUILD CARD SVG ────────────────────────────────────────────────
             const C = [];
@@ -234,32 +238,32 @@ jobs:
               C.push(`<text x="32" y="48" font-family="Arial,Helvetica,sans-serif" font-size="26" font-weight="700" fill="#1565C0">Ikibazo cya ${escapeXml(qId)}</text>`);
             }
 
-            let y = layout.titleH + 8;
-            layout.qLines.forEach((ln, i) => {
-              C.push(`<text x="32" y="${y + i * layout.qLH}" font-family="Arial,Helvetica,sans-serif" font-size="${layout.qFont}" font-weight="700" fill="#1E1E1E">${escapeXml(ln)}</text>`);
+            let y = baseLayout.titleH + 8;
+            baseLayout.qLines.forEach((ln, i) => {
+              C.push(`<text x="32" y="${y + i * baseLayout.qLH}" font-family="Arial,Helvetica,sans-serif" font-size="${baseLayout.qFont}" font-weight="700" fill="#1E1E1E">${escapeXml(ln)}</text>`);
             });
-            y += layout.qH;
-            y += layout.signBlock;
+            y += baseLayout.qH;
+            y += baseLayout.signBlock;
 
-            // Regular option boxes (with circle)
-            layout.oData.forEach(o => {
+            // Regular option boxes
+            baseLayout.oData.forEach(o => {
               C.push(`<rect x="24" y="${y}" width="${CARD_W - 48}" height="${o.h}" rx="16" fill="#FFFFFF" stroke="#E0E0E0" stroke-width="1.5"/>`);
               C.push(`<circle cx="60" cy="${y + o.h / 2}" r="${circleRadius}" fill="#E3F2FD"/>`);
               C.push(`<text x="60" y="${y + o.h / 2 + 7}" font-family="Arial Black,Arial,sans-serif" font-size="${circleFontSize}" font-weight="900" fill="#1565C0" text-anchor="middle">${o.k}</text>`);
               o.ls.forEach((ln, li) => {
-                C.push(`<text x="100" y="${y + (o.h - o.ls.length * o.lh) / 2 + o.lh * 0.8 + li * o.lh}" font-family="Arial,Helvetica,sans-serif" font-size="${layout.oFont}" fill="#212121">${escapeXml(ln)}</text>`);
+                C.push(`<text x="100" y="${y + (o.h - o.ls.length * o.lh) / 2 + o.lh * 0.8 + li * o.lh}" font-family="Arial,Helvetica,sans-serif" font-size="${baseLayout.oFont}" fill="#212121">${escapeXml(ln)}</text>`);
               });
               y += o.h + optionSpacing;
             });
 
-            // Extra yellow box (if it survived the fit)
-            if (layout.extraData) {
-              const e = layout.extraData;
+            // Extra yellow box (only if it could be added)
+            if (extraData) {
+              const e = extraData;
               C.push(`<rect x="24" y="${y}" width="${CARD_W - 48}" height="${e.h}" rx="16" fill="${extraBoxFill}" stroke="${extraBoxStroke}" stroke-width="${extraBoxStrokeWidth}"/>`);
               e.ls.forEach((ln, li) => {
-                C.push(`<text x="48" y="${y + (e.h - e.ls.length * e.lh) / 2 + e.lh * 0.8 + li * e.lh}" font-family="Arial,Helvetica,sans-serif" font-size="${layout.oFont}" fill="#000000">${escapeXml(ln)}</text>`);
+                C.push(`<text x="48" y="${y + (e.h - e.ls.length * e.lh) / 2 + e.lh * 0.8 + li * e.lh}" font-family="Arial,Helvetica,sans-serif" font-size="${e.font}" font-weight="bold" fill="#000000">${escapeXml(ln)}</text>`);
               });
-              y += e.h + optionSpacing;
+              y += e.h + optionSpacing; // not strictly needed but keeps consistency
             }
 
             C.push(`</svg>`);
@@ -270,7 +274,7 @@ jobs:
 
             const composites = [{ input: cardBuf, left, top }];
             if (signBuf) {
-              const signTop = Math.round(top + layout.titleH + layout.qH + 12);
+              const signTop = Math.round(top + baseLayout.titleH + baseLayout.qH + 12);
               const signLeft = Math.round(left + (CARD_W - signW) / 2);
               composites.push({ input: signBuf, left: signLeft, top: signTop });
             }
