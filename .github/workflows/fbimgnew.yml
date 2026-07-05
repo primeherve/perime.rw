@@ -112,7 +112,7 @@ jobs:
             // ── BUILD CARD SVG (theme like 2nd image) ─────────────────────────
             const C=[];
             C.push(`<svg width="${CARD_W}" height="${CARD_H}" xmlns="http://www.w3.org/2000/svg">`);
-            C.push(`<rect x="0" y="0" width="${CARD_W}" height="${CARD_H}" rx="26" fill="#FFFFFF" stroke="#E5E7EB" stroke-width="2"/>`);
+            C.push(`<rect x="0" y="0" width="${CARD_W}" height="${CARD_H}" rx="26" fill="#FFFFFF00" stroke="#E5E7EB" stroke-width="2"/>`);
             // Title
             C.push(`<text x="32" y="48" font-family="Arial,Helvetica,sans-serif" font-size="26" font-weight="700" fill="#1565C0">Ikibazo cya ${escapeXml(qId)}</text>`);
             // Question
