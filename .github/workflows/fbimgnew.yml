@@ -106,7 +106,7 @@ jobs:
             const minExtraGap = optionSpacing;   // falls back to option spacing
             
             // ─── SAFE ZONE MARGINS ────────────────────────────────────────
-            const TOP_OFFSET = 10;          // card top = SAFE.y + TOP_OFFSET (fixed)
+            const TOP_OFFSET = 20;          // card top = SAFE.y + TOP_OFFSET (fixed)
             const BOTTOM_MARGIN = 40;      // minimum space below card inside safe zone
             
             // ================================================================
