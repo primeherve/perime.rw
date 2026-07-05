@@ -3,13 +3,37 @@ name: Generate Quiz Image for facebook
 on:
   workflow_dispatch:
     inputs:
-      q: { description: 'Question text', required: true, type: string }
-      a: { description: 'Option A', required: true, type: string }
-      b: { description: 'Option B', required: true, type: string }
-      c: { description: 'Option C', required: false, type: string, default: '' }
-      d: { description: 'Option D', required: false, type: string, default: '' }
-      x: { description: 'Question number/ID', required: true, type: string }
-      brand: { description: 'Brand / username watermark', required: false, type: string, default: 'perime.rw250' }
+      q:
+        description: 'Question text'
+        required: true
+        type: string
+      a:
+        description: 'Option A'
+        required: true
+        type: string
+      b:
+        description: 'Option B'
+        required: true
+        type: string
+      c:
+        description: 'Option C'
+        required: false
+        type: string
+        default: ''
+      d:
+        description: 'Option D'
+        required: false
+        type: string
+        default: ''
+      x:
+        description: 'Question number/ID'
+        required: true
+        type: string
+      brand:
+        description: 'Brand / username watermark'
+        required: false
+        type: string
+        default: 'perime.rw250'
 
 jobs:
   generate:
@@ -19,7 +43,8 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
-        with: { node-version: '20' }
+        with:
+          node-version: '20'
 
       - name: Install Sharp
         run: npm install sharp --no-fund --no-audit --loglevel=error
@@ -38,16 +63,53 @@ jobs:
           (async () => {
             const fs = require('fs'), path = require('path'), sharp = require('sharp');
 
+            // ================================================================
+            // ====================== CONFIGURATION ============================
+            // ================================================================
+            
+            // ─── DIRECTORIES ────────────────────────────────────────────────
             const OUT_DIR = 'perimelight/outputfbimg';
             const SIGNS_DIR = 'perimelight/signs';
             const OVERLAY_PATH = path.join('perimelight', 'overlay', 'rise.png');
+            
+            // ─── FONT SIZE CONFIGURATION ──────────────────────────────────
+            // Adjust these values to control text sizes:
+            // - Increase qFontMultiplier for larger question text
+            // - Increase oFontMultiplier for larger option text
+            const qFontMultiplier = 0.055;  // Default: 0.055 (5.5% of card width)
+            const oFontMultiplier = 0.042;  // Default: 0.036 (3.6% of card width)
+            // Increase to: 0.060 for larger question, 0.048 for larger options
+            
+            // ─── LINE HEIGHT CONFIGURATION ────────────────────────────────
+            // Controls spacing between lines (1.0 = single spacing)
+            // - Smaller values = tighter spacing (e.g., 1.2)
+            // - Larger values = more spacing (e.g., 1.5)
+            const qLineHeightMultiplier = 1.2;  // Default: 1.35
+            const oLineHeightMultiplier = 1.15; // Default: 1.3
+            
+            // ─── TITLE DISPLAY CONFIGURATION ──────────────────────────────
+            // Set to false to hide the blue title text completely
+            const showTitleText = false;  // Default: true
+            // Set to true to prepend "Q[number]: " before question text
+            const prependQuestionNumber = true;  // Default: false
+            
+            // ─── OPTION BOX CONFIGURATION ─────────────────────────────────
+            const optionBoxHeight = 72;     // Minimum height of option boxes
+            const optionSpacing = 16;       // Spacing between options
+            const circleRadius = 22;        // Size of A/B/C/D circles
+            const circleFontSize = 20;      // Font size inside circles
+            
+            // ================================================================
+            // ==================== END CONFIGURATION =========================
+            // ================================================================
+
             fs.mkdirSync(OUT_DIR, { recursive: true });
 
             if (!fs.existsSync(OVERLAY_PATH)) throw new Error('Missing overlay image: overlay image/rise.png');
             const base = sharp(OVERLAY_PATH);
             const { width: W, height: H } = await base.metadata();
 
-            // ── SAFE ZONE (from your first image) ─────────────────────────────
+            // ── SAFE ZONE ────────────────────────────────────────────────────
             const SAFE = {
               x: Math.round(W * 0.13),
               y: Math.round(H * 0.15),
@@ -92,42 +154,73 @@ jobs:
             const wrap = (t,maxW,fs)=>{ const w=String(t).trim().split(/\s+/), L=[]; let c=''; for(const wd of w){ const tr=c?c+' '+wd:wd; if(textW(tr,fs)<=maxW){c=tr;continue} if(c)L.push(c); if(textW(wd,fs)>maxW){let p=''; for(const ch of wd){if(textW(p+ch,fs)<=maxW)p+=ch; else{L.push(p);p=ch}} c=p}else c=wd } if(c)L.push(c); return L };
 
             // ── AUTO-FIT LOOP ─────────────────────────────────────────────────
-            let qFont = Math.round(CARD_W*0.055), oFont = Math.round(CARD_W*0.036), layout;
+            // Use the configurable multipliers
+            let qFont = Math.round(CARD_W * qFontMultiplier);
+            let oFont = Math.round(CARD_W * oFontMultiplier);
+            let layout;
+            
+            // Check if we should prepend question number
+            let displayText = qText;
+            if (prependQuestionNumber) {
+              displayText = `Q${qId}: ${qText}`;
+            }
+            
             for(let i=0;i<35;i++){
-              const qLines = wrap(qText, CARD_W-64, qFont);
-              const qLH = qFont*1.35;
-              const oData = opts.map(o=>{ const ls=wrap(o.t, CARD_W-140, oFont); const lh=oFont*1.3; const h=Math.max(72, ls.length*lh+28); return {...o,ls,lh,h}});
-              const titleH = 70;
+              const qLines = wrap(displayText, CARD_W-64, qFont);
+              // Use configurable line height multipliers
+              const qLH = qFont * qLineHeightMultiplier;
+              const oData = opts.map(o=>{ 
+                const ls=wrap(o.t, CARD_W-140, oFont); 
+                const lh=oFont * oLineHeightMultiplier; 
+                const h=Math.max(optionBoxHeight, ls.length*lh+28); 
+                return {...o,ls,lh,h}
+              });
+              const titleH = showTitleText ? 70 : 20;  // Reduce space if no title
               const qH = qLines.length*qLH + 24;
               const signBlock = signH ? signH + 24 : 0;
-              const optsH = oData.reduce((s,o)=>s+o.h,0) + (oData.length-1)*16;
+              const optsH = oData.reduce((s,o)=>s+o.h,0) + (oData.length-1)*optionSpacing;
               const totalH = titleH + qH + signBlock + optsH + 48;
-              if(totalH <= SAFE.h - 40){ layout={qFont,oFont,qLines,qLH,oData,titleH,qH,signBlock,optsH,totalH}; break }
-              if(qLines.length>3 && qFont>28) qFont-=2; else if(oFont>22) oFont-=1; else qFont-=1;
+              if(totalH <= SAFE.h - 40){ 
+                layout={qFont,oFont,qLines,qLH,oData,titleH,qH,signBlock,optsH,totalH}; 
+                break 
+              }
+              if(qLines.length>3 && qFont>28) qFont-=2; 
+              else if(oFont>22) oFont-=1; 
+              else qFont-=1;
             }
             if(!layout) throw new Error('Text too long for safe zone');
 
             const CARD_H = Math.min(layout.totalH, SAFE.h - 20);
 
-            // ── BUILD CARD SVG (theme like 2nd image) ─────────────────────────
+            // ── BUILD CARD SVG ────────────────────────────────────────────────
             const C=[];
             C.push(`<svg width="${CARD_W}" height="${CARD_H}" xmlns="http://www.w3.org/2000/svg">`);
             C.push(`<rect x="0" y="0" width="${CARD_W}" height="${CARD_H}" rx="26" fill="#FFFFFF00" stroke="#FFFFFF00" stroke-width="2"/>`);
-            // Title
-            C.push(`<text x="32" y="48" font-family="Arial,Helvetica,sans-serif" font-size="26" font-weight="700" fill="#1565C0">Ikibazo cya ${escapeXml(qId)}</text>`);
-            // Question
+            
+            // ── TITLE (optional - can be hidden) ──────────────────────────────
+            if (showTitleText) {
+              C.push(`<text x="32" y="48" font-family="Arial,Helvetica,sans-serif" font-size="26" font-weight="700" fill="#1565C0">Ikibazo cya ${escapeXml(qId)}</text>`);
+            }
+            
+            // ── QUESTION ──────────────────────────────────────────────────────
             let y = layout.titleH + 8;
-            layout.qLines.forEach((ln, i)=>{ C.push(`<text x="32" y="${y + i*layout.qLH}" font-family="Arial,Helvetica,sans-serif" font-size="${layout.qFont}" font-weight="700" fill="#1E1E1E">${escapeXml(ln)}</text>`); });
+            layout.qLines.forEach((ln, i)=>{ 
+              C.push(`<text x="32" y="${y + i*layout.qLH}" font-family="Arial,Helvetica,sans-serif" font-size="${layout.qFont}" font-weight="700" fill="#1E1E1E">${escapeXml(ln)}</text>`); 
+            });
             y += layout.qH;
-            // Sign image placeholder (will be composited separately)
+            
+            // ── SIGN IMAGE ─────────────────────────────────────────────────────
             y += layout.signBlock;
-            // Options
+            
+            // ── OPTIONS ──────────────────────────────────────────────────────
             layout.oData.forEach(o=>{
               C.push(`<rect x="24" y="${y}" width="${CARD_W-48}" height="${o.h}" rx="16" fill="#FFFFFF" stroke="#E0E0E0" stroke-width="1.5"/>`);
-              C.push(`<circle cx="60" cy="${y+o.h/2}" r="22" fill="#E3F2FD"/>`);
-              C.push(`<text x="60" y="${y+o.h/2+7}" font-family="Arial Black,Arial,sans-serif" font-size="20" font-weight="900" fill="#1565C0" text-anchor="middle">${o.k}</text>`);
-              o.ls.forEach((ln,li)=>{ C.push(`<text x="100" y="${y + (o.h - o.ls.length*o.lh)/2 + o.lh*0.8 + li*o.lh}" font-family="Arial,Helvetica,sans-serif" font-size="${layout.oFont}" fill="#212121">${escapeXml(ln)}</text>`); });
-              y += o.h + 16;
+              C.push(`<circle cx="60" cy="${y+o.h/2}" r="${circleRadius}" fill="#E3F2FD"/>`);
+              C.push(`<text x="60" y="${y+o.h/2+7}" font-family="Arial Black,Arial,sans-serif" font-size="${circleFontSize}" font-weight="900" fill="#1565C0" text-anchor="middle">${o.k}</text>`);
+              o.ls.forEach((ln,li)=>{ 
+                C.push(`<text x="100" y="${y + (o.h - o.ls.length*o.lh)/2 + o.lh*0.8 + li*o.lh}" font-family="Arial,Helvetica,sans-serif" font-size="${layout.oFont}" fill="#212121">${escapeXml(ln)}</text>`); 
+              });
+              y += o.h + optionSpacing;
             });
             C.push(`</svg>`);
 
