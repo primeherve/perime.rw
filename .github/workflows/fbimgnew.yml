@@ -73,31 +73,22 @@ jobs:
             const OVERLAY_PATH = path.join('perimelight', 'overlay', 'rise.png');
             
             // ─── FONT SIZE CONFIGURATION ──────────────────────────────────
-            // Adjust these values to control text sizes:
-            // - Increase qFontMultiplier for larger question text
-            // - Increase oFontMultiplier for larger option text
-            const qFontMultiplier = 0.05;  // Default: 0.055 (5.5% of card width)
-            const oFontMultiplier = 0.047;  // Default: 0.042 (3.6% of card width)
-            // Increase to: 0.060 for larger question, 0.048 for larger options
+            const qFontMultiplier = 0.05;
+            const oFontMultiplier = 0.047;
             
             // ─── LINE HEIGHT CONFIGURATION ────────────────────────────────
-            // Controls spacing between lines (1.0 = single spacing)
-            // - Smaller values = tighter spacing (e.g., 1.2)
-            // - Larger values = more spacing (e.g., 1.5)
-            const qLineHeightMultiplier = 1.2;  // Default: 1.35
-            const oLineHeightMultiplier = 1.15; // Default: 1.3
+            const qLineHeightMultiplier = 1.2;
+            const oLineHeightMultiplier = 1.15;
             
             // ─── TITLE DISPLAY CONFIGURATION ──────────────────────────────
-            // Set to false to hide the blue title text completely
-            const showTitleText = false;  // Default: true
-            // Set to true to prepend "Q[number]: " before question text
-            const prependQuestionNumber = true;  // Default: false
+            const showTitleText = false;
+            const prependQuestionNumber = true;
             
             // ─── OPTION BOX CONFIGURATION ─────────────────────────────────
-            const optionBoxHeight = 72;     // Minimum height of option boxes
-            const optionSpacing = 16;       // Spacing between options
-            const circleRadius = 22;        // Size of A/B/C/D circles
-            const circleFontSize = 20;      // Font size inside circles
+            const optionBoxHeight = 72;
+            const optionSpacing = 16;
+            const circleRadius = 22;
+            const circleFontSize = 20;
             
             // ================================================================
             // ==================== END CONFIGURATION =========================
@@ -143,10 +134,46 @@ jobs:
             }
 
             // ── OPTIONS ───────────────────────────────────────────────────────
-            const opts = ['a','b','c','d'].filter(k=>rawOpts[k]).map(k=>({
-              k:k.toUpperCase(),
-              t: String(rawOpts[k]).replace(/^[A-D][\.\)\-:\s]+/i,'').trim()
-            }));
+            // Function to clean option text - only remove actual option prefix if it's at the start
+            // and followed by a separator, but keep the text content
+            const cleanOptionText = (text, optionKey) => {
+              // Remove ONLY if the text starts with the option letter followed by separator
+              // But keep the content if it starts with a letter that's part of the actual text
+              const pattern = new RegExp(`^${optionKey.toLowerCase()}\\s*[\\.\\)\\-\\:\\s]+`, 'i');
+              // Only strip if the text starts with the option letter and a separator
+              if (pattern.test(text)) {
+                return text.replace(pattern, '').trim();
+              }
+              // Also check if it starts with just the letter and a space
+              const simplePattern = new RegExp(`^${optionKey.toLowerCase()}\\s+`, 'i');
+              if (simplePattern.test(text)) {
+                return text.replace(simplePattern, '').trim();
+              }
+              // If the text is just the letter alone, return empty
+              if (text.toLowerCase() === optionKey.toLowerCase()) {
+                return '';
+              }
+              // For cases like "A na C", keep the text as is
+              return text;
+            };
+
+            const opts = ['a','b','c','d'].filter(k=>rawOpts[k]).map(k => {
+              let text = rawOpts[k];
+              // Clean the text
+              let cleanText = cleanOptionText(text, k);
+              // If after cleaning we have a capital letter followed by "na" or similar,
+              // keep it as is (it's part of the actual content)
+              if (!cleanText || cleanText.length === 0) {
+                // If text was just the letter and nothing else, use a default
+                cleanText = text;
+              }
+              // Capitalize first letter of the option text
+              cleanText = cleanText.charAt(0).toUpperCase() + cleanText.slice(1);
+              return {
+                k: k.toUpperCase(),
+                t: cleanText
+              };
+            });
 
             // ── TEXT HELPERS ──────────────────────────────────────────────────
             const cw = ch => /[iIl1|!.,;:'`"()\[\]{}\\\/]/.test(ch)?0.34 : /[mwMW@%]/.test(ch)?0.72 : /[A-Z]/.test(ch)?0.66 : /[a-z]/.test(ch)?0.52 : /[0-9]/.test(ch)?0.58 : 0.56;
@@ -154,12 +181,10 @@ jobs:
             const wrap = (t,maxW,fs)=>{ const w=String(t).trim().split(/\s+/), L=[]; let c=''; for(const wd of w){ const tr=c?c+' '+wd:wd; if(textW(tr,fs)<=maxW){c=tr;continue} if(c)L.push(c); if(textW(wd,fs)>maxW){let p=''; for(const ch of wd){if(textW(p+ch,fs)<=maxW)p+=ch; else{L.push(p);p=ch}} c=p}else c=wd } if(c)L.push(c); return L };
 
             // ── AUTO-FIT LOOP ─────────────────────────────────────────────────
-            // Use the configurable multipliers
             let qFont = Math.round(CARD_W * qFontMultiplier);
             let oFont = Math.round(CARD_W * oFontMultiplier);
             let layout;
             
-            // Check if we should prepend question number
             let displayText = qText;
             if (prependQuestionNumber) {
               displayText = `Q${qId}: ${qText}`;
@@ -167,7 +192,6 @@ jobs:
             
             for(let i=0;i<35;i++){
               const qLines = wrap(displayText, CARD_W-64, qFont);
-              // Use configurable line height multipliers
               const qLH = qFont * qLineHeightMultiplier;
               const oData = opts.map(o=>{ 
                 const ls=wrap(o.t, CARD_W-140, oFont); 
@@ -175,7 +199,7 @@ jobs:
                 const h=Math.max(optionBoxHeight, ls.length*lh+28); 
                 return {...o,ls,lh,h}
               });
-              const titleH = showTitleText ? 70 : 20;  // Reduce space if no title
+              const titleH = showTitleText ? 70 : 20;
               const qH = qLines.length*qLH + 24;
               const signBlock = signH ? signH + 24 : 0;
               const optsH = oData.reduce((s,o)=>s+o.h,0) + (oData.length-1)*optionSpacing;
@@ -197,22 +221,18 @@ jobs:
             C.push(`<svg width="${CARD_W}" height="${CARD_H}" xmlns="http://www.w3.org/2000/svg">`);
             C.push(`<rect x="0" y="0" width="${CARD_W}" height="${CARD_H}" rx="26" fill="#FFFFFF00" stroke="#FFFFFF00" stroke-width="2"/>`);
             
-            // ── TITLE (optional - can be hidden) ──────────────────────────────
             if (showTitleText) {
               C.push(`<text x="32" y="48" font-family="Arial,Helvetica,sans-serif" font-size="26" font-weight="700" fill="#1565C0">Ikibazo cya ${escapeXml(qId)}</text>`);
             }
             
-            // ── QUESTION ──────────────────────────────────────────────────────
             let y = layout.titleH + 8;
             layout.qLines.forEach((ln, i)=>{ 
               C.push(`<text x="32" y="${y + i*layout.qLH}" font-family="Arial,Helvetica,sans-serif" font-size="${layout.qFont}" font-weight="700" fill="#1E1E1E">${escapeXml(ln)}</text>`); 
             });
             y += layout.qH;
             
-            // ── SIGN IMAGE ─────────────────────────────────────────────────────
             y += layout.signBlock;
             
-            // ── OPTIONS ──────────────────────────────────────────────────────
             layout.oData.forEach(o=>{
               C.push(`<rect x="24" y="${y}" width="${CARD_W-48}" height="${o.h}" rx="16" fill="#FFFFFF" stroke="#E0E0E0" stroke-width="1.5"/>`);
               C.push(`<circle cx="60" cy="${y+o.h/2}" r="${circleRadius}" fill="#E3F2FD"/>`);
