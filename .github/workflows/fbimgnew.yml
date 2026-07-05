@@ -76,8 +76,8 @@ jobs:
             // Adjust these values to control text sizes:
             // - Increase qFontMultiplier for larger question text
             // - Increase oFontMultiplier for larger option text
-            const qFontMultiplier = 0.055;  // Default: 0.055 (5.5% of card width)
-            const oFontMultiplier = 0.042;  // Default: 0.036 (3.6% of card width)
+            const qFontMultiplier = 0.05;  // Default: 0.055 (5.5% of card width)
+            const oFontMultiplier = 0.047;  // Default: 0.042 (3.6% of card width)
             // Increase to: 0.060 for larger question, 0.048 for larger options
             
             // ─── LINE HEIGHT CONFIGURATION ────────────────────────────────
