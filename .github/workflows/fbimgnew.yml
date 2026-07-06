@@ -99,9 +99,9 @@ jobs:
             const BOTTOM_MARGIN = 40;
             
             // === NEW: extra box anchor (touches phone edges & bottom nav) ===
-            const CONTENT_LEFT_RATIO = 0.158;      // left edge of white area
-            const CONTENT_RIGHT_RATIO = 0.83;    // right edge
-            const EXTRA_BOTTOM_RATIO = 0.832;     // top of bottom nav bar
+            const CONTENT_LEFT_RATIO = 0.159;      // left edge of white area
+            const CONTENT_RIGHT_RATIO = 0.84;    // right edge
+            const EXTRA_BOTTOM_RATIO = 0.842;     // top of bottom nav bar
             const EXTRA_MIN_GAP = 16;             // space between D and yellow box
             const extraBoxFill = "#FFF9C4";
             const extraBoxStroke = "#000000";
