@@ -82,7 +82,7 @@ jobs:
             const SAFE_W_RATIO = 0.720;
             const SAFE_H_RATIO = 0.713;
 
-            const CARD_PAD_X        = 20;
+            const CARD_PAD_X        = 26;
             const CARD_TOP_OFFSET   = 50;
             const CARD_BOTTOM_MARGIN= 40;
 
@@ -103,8 +103,8 @@ jobs:
             const EXTRA_BOX_STROKE_WIDTH  = 1;
             const EXTRA_FONT_MULTIPLIER   = 0.045;
             const EXTRA_LINE_HEIGHT_MULT  = 1.25;
-            const EXTRA_BOX_BOTTOM_MARGIN = 20;
-            const EXTRA_BOX_WIDTH_RATIO   = 0.67;
+            const EXTRA_BOX_BOTTOM_MARGIN = 24;
+            const EXTRA_BOX_WIDTH_RATIO   = 0.68;
             const EXTRA_BOX_GAP_ABOVE     = 12;
 
             const MIN_Q_FONT = 20;
