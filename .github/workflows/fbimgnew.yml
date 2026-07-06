@@ -239,7 +239,7 @@ jobs:
               const extraLH = extraFont * EXTRA_LINE_HEIGHT_MULT;
               const extraH = Math.max(OPTION_BOX_HEIGHT, extraLines.length * extraLH + 28);
               extraBoxBottom = SAFE.y + SAFE.h - EXTRA_BOX_BOTTOM_MARGIN;
-              extraBoxTop = extraBoxBottom - extraH;
+              extraBoxTop = extraBoxBottom - extraH;     // ← may be float, rounded later
               extraBoxLeft = Math.round((W - extraBoxWidth) / 2);
               extraData = { ls: extraLines, lh: extraLH, h: extraH, font: extraFont };
             }
@@ -329,18 +329,18 @@ jobs:
 
             // ── 6. Composite everything onto the overlay ────────────────────
             const cardBuf = await sharp(Buffer.from(C.join('\n'))).png().toBuffer();
-            const composites = [{ input: cardBuf, left: cardLeft, top: cardTop }];
+            const composites = [{ input: cardBuf, left: Math.round(cardLeft), top: Math.round(cardTop) }];
 
             // Sign image (centered inside card)
             if (signBuf) {
-              const signTop = Math.round(cardTop + baseLayout.titleH + baseLayout.qH + 12);
-              const signLeft = Math.round(cardLeft + (CARD_W - signW) / 2);
-              composites.push({ input: signBuf, left: signLeft, top: signTop });
+              const signTop = cardTop + baseLayout.titleH + baseLayout.qH + 12;
+              const signLeft = cardLeft + (CARD_W - signW) / 2;
+              composites.push({ input: signBuf, left: Math.round(signLeft), top: Math.round(signTop) });
             }
 
             // Extra box (bottom‑anchored, drawn on top)
             if (extraBoxBuf) {
-              composites.push({ input: extraBoxBuf, left: extraBoxLeft, top: extraBoxTop });
+              composites.push({ input: extraBoxBuf, left: Math.round(extraBoxLeft), top: Math.round(extraBoxTop) });
             }
 
             const safeId = qId.replace(/[^a-z0-9]/gi, '_');
