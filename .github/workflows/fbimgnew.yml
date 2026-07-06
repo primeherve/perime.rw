@@ -76,7 +76,7 @@ jobs:
             // ─── DIRECTORIES ────────────────────────────────────────────────
             const OUT_DIR = 'perimelight/outputfbimg';
             const SIGNS_DIR = 'perimelight/signs';
-            const OVERLAY_PATH = path.join('perimelight', 'overlay', 'rise.png');
+            const OVERLAY_PATH = path.join('perimelight', 'overlay', 'new.png');
             
             // ─── FONT SIZE CONFIGURATION ──────────────────────────────────
             const qFontMultiplier = 0.05;
@@ -115,7 +115,7 @@ jobs:
 
             fs.mkdirSync(OUT_DIR, { recursive: true });
 
-            if (!fs.existsSync(OVERLAY_PATH)) throw new Error('Missing overlay image: overlay image/rise.png');
+            if (!fs.existsSync(OVERLAY_PATH)) throw new Error('Missing overlay image: overlay image/new.png');
             const base = sharp(OVERLAY_PATH);
             const { width: W, height: H } = await base.metadata();
 
