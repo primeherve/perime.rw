@@ -188,7 +188,11 @@ jobs:
 
             // ---- 3. extra yellow box anchored to bottom nav ----
             const composites = [{input:cardBuf, left:cardLeft, top:cardTop}];
-            if(signBuf){ const signTop=Math.round(cardTop+baseLayout.titleH+baseLayout.qH+12); const signLeft=Math.round(cardLeft+(CARD_W-signW)/2); composites.push({input:signBuf,left:signLeft,top:signTop}); }
+            if(signBuf){
+              const signTop = Math.round(cardTop+baseLayout.titleH+baseLayout.qH+12);
+              const signLeft = Math.round(cardLeft+(CARD_W-signW)/2);
+              composites.push({input:signBuf, left:signLeft, top:signTop});
+            }
 
             if(hasExtra){
               const CONTENT_LEFT = Math.round(W*CONTENT_LEFT_RATIO);
@@ -207,7 +211,8 @@ jobs:
                   eFont-=1;
                 }
                 if(eData){
-                  const eH=eData.h, eTop=EXTRA_BOTTOM - eH;
+                  const eH = eData.h;
+                  const eTop = Math.round(EXTRA_BOTTOM - eH);   // <-- ensures integer
                   const E=[];
                   E.push(`<svg width="${CONTENT_W}" height="${eH}" xmlns="http://www.w3.org/2000/svg">`);
                   E.push(`<rect x="0" y="0" width="${CONTENT_W}" height="${eH}" fill="${extraBoxFill}" stroke="${extraBoxStroke}" stroke-width="${extraBoxStrokeWidth}"/>`);
