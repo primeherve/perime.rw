@@ -82,7 +82,7 @@ jobs:
             const SAFE_W_RATIO = 0.720;
             const SAFE_H_RATIO = 0.713;
 
-            const CARD_PAD_X        = 24;
+            const CARD_PAD_X        = 20;
             const CARD_TOP_OFFSET   = 50;
             const CARD_BOTTOM_MARGIN= 40;
 
