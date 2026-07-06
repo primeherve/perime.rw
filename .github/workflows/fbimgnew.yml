@@ -69,240 +69,163 @@ jobs:
           (async () => {
             const fs = require('fs'), path = require('path'), sharp = require('sharp');
 
-            // ================================================================
             // ====================== CONFIGURATION ============================
-            // ================================================================
-            
-            // ─── DIRECTORIES ────────────────────────────────────────────────
             const OUT_DIR = 'perimelight/outputfbimg';
             const SIGNS_DIR = 'perimelight/signs';
             const OVERLAY_PATH = path.join('perimelight', 'overlay', 'rise.png');
             
-            // ─── FONT SIZE CONFIGURATION ──────────────────────────────────
+            // fonts
             const qFontMultiplier = 0.05;
             const oFontMultiplier = 0.047;
-            const extraFontMultiplier = 0.04;        // own font size for extra box
+            const extraFontMultiplier = 0.04;
             
-            // ─── LINE HEIGHT CONFIGURATION ────────────────────────────────
+            // line heights
             const qLineHeightMultiplier = 1.2;
             const oLineHeightMultiplier = 1.15;
             const extraLineHeightMultiplier = 1.25;
             
-            // ─── TITLE DISPLAY CONFIGURATION ──────────────────────────────
+            // title
             const showTitleText = false;
             const prependQuestionNumber = true;
             
-            // ─── OPTION BOX CONFIGURATION ─────────────────────────────────
+            // options
             const optionBoxHeight = 72;
             const optionSpacing = 16;
             const circleRadius = 22;
             const circleFontSize = 20;
             
-            // ─── EXTRA BOX STYLE & SPACING ────────────────────────────────
+            // safe zone for Q + options
+            const TOP_OFFSET = 10;
+            const BOTTOM_MARGIN = 40;
+            
+            // === NEW: extra box anchor (touches phone edges & bottom nav) ===
+            const CONTENT_LEFT_RATIO = 0.16;      // left edge of white area
+            const CONTENT_RIGHT_RATIO = 0.832;    // right edge
+            const EXTRA_BOTTOM_RATIO = 0.882;     // top of bottom nav bar
+            const EXTRA_MIN_GAP = 16;             // space between D and yellow box
             const extraBoxFill = "#FFF9C4";
             const extraBoxStroke = "#000000";
             const extraBoxStrokeWidth = 1;
-            const maxExtraGap = 48;        // maximum gap between last option and extra box
-            const minExtraGap = optionSpacing;   // falls back to option spacing
-            
-            // ─── SAFE ZONE MARGINS ────────────────────────────────────────
-            const TOP_OFFSET = 10;          // card top = SAFE.y + TOP_OFFSET (fixed)
-            const BOTTOM_MARGIN = 40;      // minimum space below card inside safe zone
-            
-            // ================================================================
-            // ==================== END CONFIGURATION =========================
             // ================================================================
 
             fs.mkdirSync(OUT_DIR, { recursive: true });
-
-            if (!fs.existsSync(OVERLAY_PATH)) throw new Error('Missing overlay image: overlay image/rise.png');
+            if (!fs.existsSync(OVERLAY_PATH)) throw new Error('Missing overlay: perimelight/overlay/rise.png');
             const base = sharp(OVERLAY_PATH);
             const { width: W, height: H } = await base.metadata();
 
-            // ── SAFE ZONE ────────────────────────────────────────────────────
-            const SAFE = {
-              x: Math.round(W * 0.13),
-              y: Math.round(H * 0.15),
-              w: Math.round(W * 0.720),
-              h: Math.round(H * 0.713)
-            };
+            // safe zone
+            const SAFE = { x: Math.round(W*0.13), y: Math.round(H*0.15), w: Math.round(W*0.720), h: Math.round(H*0.713) };
             const PAD = 24;
-            const CARD_W = SAFE.w - PAD * 2;
+            const CARD_W = SAFE.w - PAD*2;
             const MAX_AVAILABLE_H = SAFE.h - BOTTOM_MARGIN;
 
-            // ── INPUTS ────────────────────────────────────────────────────────
+            // inputs
             const qId = (process.env.INPUT_X || '1').trim();
-            let qText = (process.env.INPUT_Q || '').replace(/\s+/g, ' ').trim();
-            const rawOpts = {
-              a: (process.env.INPUT_A || '').trim(),
-              b: (process.env.INPUT_B || '').trim(),
-              c: (process.env.INPUT_C || '').trim(),
-              d: (process.env.INPUT_D || '').trim()
-            };
+            let qText = (process.env.INPUT_Q || '').replace(/\s+/g,' ').trim();
+            const rawOpts = { a:process.env.INPUT_A||'', b:process.env.INPUT_B||'', c:process.env.INPUT_C||'', d:process.env.INPUT_D||'' };
             const extraText = (process.env.INPUT_E || '').trim();
-            const hasExtraText = extraText.length > 0;
+            const hasExtra = extraText.length>0;
 
-            // ── OPTIONAL SIGN IMAGE [image] ───────────────────────────────────
+            // optional sign
             const hasImg = /\[image\]/i.test(qText);
-            if (hasImg) qText = qText.replace(/\[image\]/i, '').trim();
-            let signBuf = null, signH = 0, signW = 0;
+            if (hasImg) qText = qText.replace(/\[image\]/i,'').trim();
+            let signBuf=null, signH=0, signW=0;
             if (hasImg) {
               for (const ext of ['.jpg','.jpeg','.png','.webp']) {
                 const p = path.join(SIGNS_DIR, `${qId}${ext}`);
                 if (!fs.existsSync(p)) continue;
-                signBuf = await sharp(p).resize(Math.round(CARD_W*0.85), Math.round(SAFE.h*0.3), {fit:'inside', withoutEnlargement:true}).png().toBuffer();
+                signBuf = await sharp(p).resize(Math.round(CARD_W*0.85), Math.round(SAFE.h*0.3), {fit:'inside',withoutEnlargement:true}).png().toBuffer();
                 const m = await sharp(signBuf).metadata(); signW=m.width; signH=m.height; break;
               }
             }
 
-            // ── OPTIONS (clean text) ─────────────────────────────────────────
-            const cleanOptionText = (text, optionKey) => {
-              const pattern = new RegExp(`^${optionKey.toLowerCase()}\\s*[\\.\\)\\-\\:\\s]+`, 'i');
-              if (pattern.test(text)) return text.replace(pattern, '').trim();
-              const simplePattern = new RegExp(`^${optionKey.toLowerCase()}\\s+`, 'i');
-              if (simplePattern.test(text)) return text.replace(simplePattern, '').trim();
-              if (text.toLowerCase() === optionKey.toLowerCase()) return '';
-              return text;
-            };
+            // clean options
+            const clean = (t,k)=>{ const p=new RegExp(`^${k}\\s*[\\.\\)\\-\\:\\s]+`,'i'); return p.test(t)?t.replace(p,'').trim():t };
+            const opts = ['a','b','c','d'].filter(k=>rawOpts[k]).map(k=>({k:k.toUpperCase(), t:clean(rawOpts[k],k).replace(/^./,c=>c.toUpperCase())}));
 
-            const opts = ['a','b','c','d'].filter(k=>rawOpts[k]).map(k => {
-              let text = rawOpts[k];
-              let cleanText = cleanOptionText(text, k);
-              if (!cleanText || cleanText.length === 0) cleanText = text;
-              cleanText = cleanText.charAt(0).toUpperCase() + cleanText.slice(1);
-              return { k: k.toUpperCase(), t: cleanText };
-            });
-
-            // ── TEXT HELPERS ──────────────────────────────────────────────────
-            const cw = ch => /[iIl1|!.,;:'`"()\[\]{}\\\/]/.test(ch)?0.34 : /[mwMW@%]/.test(ch)?0.72 : /[A-Z]/.test(ch)?0.66 : /[a-z]/.test(ch)?0.52 : /[0-9]/.test(ch)?0.58 : 0.56;
+            // helpers
+            const cw = ch=>/[iIl1|!.,;:'`"()\[\]{}\\\/]/.test(ch)?0.34:/[mwMW@%]/.test(ch)?0.72:/[A-Z]/.test(ch)?0.66:/[a-z]/.test(ch)?0.52:/[0-9]/.test(ch)?0.58:0.56;
             const textW = (s,fs)=>[...String(s)].reduce((a,c)=>a+cw(c)*fs,0);
             const wrap = (t,maxW,fs)=>{ const w=String(t).trim().split(/\s+/), L=[]; let c=''; for(const wd of w){ const tr=c?c+' '+wd:wd; if(textW(tr,fs)<=maxW){c=tr;continue} if(c)L.push(c); if(textW(wd,fs)>maxW){let p=''; for(const ch of wd){if(textW(p+ch,fs)<=maxW)p+=ch; else{L.push(p);p=ch}} c=p}else c=wd } if(c)L.push(c); return L };
 
-            // ── QUESTION TEXT ─────────────────────────────────────────────────
-            let displayText = qText;
-            if (prependQuestionNumber) displayText = `Q${qId}: ${qText}`;
+            let displayText = prependQuestionNumber ? `Q${qId}: ${qText}` : qText;
 
-            // ── 1. FIT BASE LAYOUT (question + options + sign) ────────────────
-            let qFont = Math.round(CARD_W * qFontMultiplier);
-            let oFont = Math.round(CARD_W * oFontMultiplier);
-            let baseLayout = null;
-            for (let i = 0; i < 35; i++) {
-              const qLines = wrap(displayText, CARD_W - 64, qFont);
-              const qLH = qFont * qLineHeightMultiplier;
-              const oData = opts.map(o => {
-                const ls = wrap(o.t, CARD_W - 140, oFont);
-                const lh = oFont * oLineHeightMultiplier;
-                const h = Math.max(optionBoxHeight, ls.length * lh + 28);
-                return { ...o, ls, lh, h };
-              });
-              const titleH = showTitleText ? 70 : 20;
-              const qH = qLines.length * qLH + 24;
-              const signBlock = signH ? signH + 24 : 0;
-              const optsH = oData.reduce((s, o) => s + o.h, 0) + (oData.length - 1) * optionSpacing;
-              const baseTotalH = titleH + qH + signBlock + optsH + 48;   // bottom padding inside card
-
-              if (baseTotalH <= MAX_AVAILABLE_H) {
-                baseLayout = { qFont, oFont, qLines, qLH, oData, titleH, qH, signBlock, optsH, baseTotalH };
-                break;
-              }
-              // reduce fonts to fit
-              if (qLines.length > 3 && qFont > 28) qFont -= 2;
-              else if (oFont > 22) oFont -= 1;
-              else qFont -= 1;
+            // ---- 1. fit Q + options ----
+            let qFont=Math.round(CARD_W*qFontMultiplier), oFont=Math.round(CARD_W*oFontMultiplier), baseLayout=null;
+            for(let i=0;i<35;i++){
+              const qLines=wrap(displayText, CARD_W-64, qFont), qLH=qFont*qLineHeightMultiplier;
+              const oData=opts.map(o=>{ const ls=wrap(o.t, CARD_W-140, oFont); const lh=oFont*oLineHeightMultiplier; const h=Math.max(optionBoxHeight, ls.length*lh+28); return {...o,ls,lh,h}; });
+              const titleH=showTitleText?70:20, qH=qLines.length*qLH+24, signBlock=signH?signH+24:0;
+              const optsH=oData.reduce((s,o)=>s+o.h,0)+(oData.length-1)*optionSpacing;
+              const totalH=titleH+qH+signBlock+optsH+48;
+              if(totalH<=MAX_AVAILABLE_H){ baseLayout={qFont,oFont,qLines,qLH,oData,titleH,qH,signBlock,optsH,totalH}; break; }
+              if(qLines.length>3 && qFont>28) qFont-=2; else if(oFont>22) oFont-=1; else qFont-=1;
             }
-            if (!baseLayout) throw new Error('Content too long for safe zone (base layout).');
+            if(!baseLayout) throw new Error('Content too long');
 
-            // ── 2. EXTRA BOX (only if text provided and space allows) ─────────
-            let extraData = null;
-            let extraGap = 0;
-            if (hasExtraText) {
-              const extraFont = Math.round(CARD_W * extraFontMultiplier);
-              const maxW = CARD_W - 80;
-              const extraLines = wrap(extraText, maxW, extraFont);
-              const extraLH = extraFont * extraLineHeightMultiplier;
-              const extraH = Math.max(optionBoxHeight, extraLines.length * extraLH + 28);
-
-              // Try max gap first, then min gap
-              let gap = maxExtraGap;
-              if (baseLayout.baseTotalH + gap + extraH > MAX_AVAILABLE_H) {
-                gap = minExtraGap;
-                if (baseLayout.baseTotalH + gap + extraH > MAX_AVAILABLE_H) {
-                  gap = 0;   // cannot fit even with min gap → skip extra box
-                }
-              }
-
-              if (gap > 0) {
-                extraGap = gap;
-                extraData = { ls: extraLines, lh: extraLH, h: extraH, font: extraFont };
-              }
-            }
-
-            // ── 3. BUILD FINAL CARD DIMENSIONS ──────────────────────────────
-            const extraBlock = extraData ? extraGap + extraData.h : 0;
-            const totalCardH = baseLayout.baseTotalH + extraBlock;
-            const CARD_H = Math.min(totalCardH, MAX_AVAILABLE_H);
-
-            // Fixed top position – always start at top of safe zone (plus offset)
             const cardTop = SAFE.y + TOP_OFFSET;
-            const cardLeft = Math.round(SAFE.x + (SAFE.w - CARD_W) / 2);
+            const cardLeft = Math.round(SAFE.x + (SAFE.w - CARD_W)/2);
+            const CARD_H = baseLayout.totalH;
+            const lastOptionBottom = cardTop + baseLayout.titleH + baseLayout.qH + baseLayout.signBlock + baseLayout.optsH;
 
-            // ── 4. BUILD CARD SVG ────────────────────────────────────────────
-            const C = [];
+            // ---- 2. build main card SVG (no extra box inside) ----
+            const C=[];
             C.push(`<svg width="${CARD_W}" height="${CARD_H}" xmlns="http://www.w3.org/2000/svg">`);
-            C.push(`<rect x="0" y="0" width="${CARD_W}" height="${CARD_H}" rx="26" fill="#FFFFFF00" stroke="#FFFFFF00" stroke-width="2"/>`);
-
-            if (showTitleText) {
-              C.push(`<text x="32" y="48" font-family="Arial,Helvetica,sans-serif" font-size="26" font-weight="700" fill="#1565C0">Ikibazo cya ${escapeXml(qId)}</text>`);
-            }
-
-            let y = baseLayout.titleH + 8;
-            baseLayout.qLines.forEach((ln, i) => {
-              C.push(`<text x="32" y="${y + i * baseLayout.qLH}" font-family="Arial,Helvetica,sans-serif" font-size="${baseLayout.qFont}" font-weight="700" fill="#1E1E1E">${escapeXml(ln)}</text>`);
+            C.push(`<rect x="0" y="0" width="${CARD_W}" height="${CARD_H}" rx="26" fill="#FFFFFF00"/>`);
+            if(showTitleText) C.push(`<text x="32" y="48" font-family="Arial,Helvetica,sans-serif" font-size="26" font-weight="700" fill="#1565C0">Ikibazo cya ${escapeXml(qId)}</text>`);
+            let y=baseLayout.titleH+8;
+            baseLayout.qLines.forEach((ln,i)=>C.push(`<text x="32" y="${y+i*baseLayout.qLH}" font-family="Arial,Helvetica,sans-serif" font-size="${baseLayout.qFont}" font-weight="700" fill="#1E1E1E">${escapeXml(ln)}</text>`));
+            y+=baseLayout.qH+baseLayout.signBlock;
+            baseLayout.oData.forEach(o=>{
+              C.push(`<rect x="24" y="${y}" width="${CARD_W-48}" height="${o.h}" rx="16" fill="#FFFFFF" stroke="#E0E0E0" stroke-width="1.5"/>`);
+              C.push(`<circle cx="60" cy="${y+o.h/2}" r="${circleRadius}" fill="#E3F2FD"/>`);
+              C.push(`<text x="60" y="${y+o.h/2+7}" font-family="Arial Black,Arial,sans-serif" font-size="${circleFontSize}" font-weight="900" fill="#1565C0" text-anchor="middle">${o.k}</text>`);
+              o.ls.forEach((ln,li)=>C.push(`<text x="100" y="${y+(o.h-o.ls.length*o.lh)/2+o.lh*0.8+li*o.lh}" font-family="Arial,Helvetica,sans-serif" font-size="${baseLayout.oFont}" fill="#212121">${escapeXml(ln)}</text>`));
+              y+=o.h+optionSpacing;
             });
-            y += baseLayout.qH;
-            y += baseLayout.signBlock;
-
-            // Regular option boxes
-            baseLayout.oData.forEach(o => {
-              C.push(`<rect x="24" y="${y}" width="${CARD_W - 48}" height="${o.h}" rx="16" fill="#FFFFFF" stroke="#E0E0E0" stroke-width="1.5"/>`);
-              C.push(`<circle cx="60" cy="${y + o.h / 2}" r="${circleRadius}" fill="#E3F2FD"/>`);
-              C.push(`<text x="60" y="${y + o.h / 2 + 7}" font-family="Arial Black,Arial,sans-serif" font-size="${circleFontSize}" font-weight="900" fill="#1565C0" text-anchor="middle">${o.k}</text>`);
-              o.ls.forEach((ln, li) => {
-                C.push(`<text x="100" y="${y + (o.h - o.ls.length * o.lh) / 2 + o.lh * 0.8 + li * o.lh}" font-family="Arial,Helvetica,sans-serif" font-size="${baseLayout.oFont}" fill="#212121">${escapeXml(ln)}</text>`);
-              });
-              y += o.h + optionSpacing;
-            });
-
-            // Extra yellow box (with variable gap)
-            if (extraData) {
-              y += extraGap - optionSpacing;   // we already added optionSpacing after last option; adjust to desired gap
-              const e = extraData;
-              C.push(`<rect x="24" y="${y}" width="${CARD_W - 48}" height="${e.h}" rx="16" fill="${extraBoxFill}" stroke="${extraBoxStroke}" stroke-width="${extraBoxStrokeWidth}"/>`);
-              e.ls.forEach((ln, li) => {
-                C.push(`<text x="48" y="${y + (e.h - e.ls.length * e.lh) / 2 + e.lh * 0.8 + li * e.lh}" font-family="Arial,Helvetica,sans-serif" font-size="${e.font}" font-weight="bold" fill="#000000">${escapeXml(ln)}</text>`);
-              });
-              // y not needed further
-            }
-
             C.push(`</svg>`);
-
-            // ── 5. COMPOSITE ONTO OVERLAY ───────────────────────────────────
             const cardBuf = await sharp(Buffer.from(C.join('\n'))).png().toBuffer();
 
-            const composites = [{ input: cardBuf, left: cardLeft, top: cardTop }];
-            if (signBuf) {
-              const signTop = Math.round(cardTop + baseLayout.titleH + baseLayout.qH + 12);
-              const signLeft = Math.round(cardLeft + (CARD_W - signW) / 2);
-              composites.push({ input: signBuf, left: signLeft, top: signTop });
+            // ---- 3. extra yellow box anchored to bottom nav ----
+            const composites = [{input:cardBuf, left:cardLeft, top:cardTop}];
+            if(signBuf){ const signTop=Math.round(cardTop+baseLayout.titleH+baseLayout.qH+12); const signLeft=Math.round(cardLeft+(CARD_W-signW)/2); composites.push({input:signBuf,left:signLeft,top:signTop}); }
+
+            if(hasExtra){
+              const CONTENT_LEFT = Math.round(W*CONTENT_LEFT_RATIO);
+              const CONTENT_RIGHT = Math.round(W*CONTENT_RIGHT_RATIO);
+              const CONTENT_W = CONTENT_RIGHT - CONTENT_LEFT;
+              const EXTRA_BOTTOM = Math.round(H*EXTRA_BOTTOM_RATIO);
+              const maxExtraH = Math.max(0, EXTRA_BOTTOM - lastOptionBottom - EXTRA_MIN_GAP);
+              
+              if(maxExtraH>48){
+                let eFont=Math.round(CONTENT_W*extraFontMultiplier), eData=null;
+                for(let i=0;i<15;i++){
+                  const lines=wrap(extraText, CONTENT_W-48, eFont);
+                  const lh=eFont*extraLineHeightMultiplier;
+                  const h=Math.max(56, lines.length*lh+24);
+                  if(h<=maxExtraH || eFont<=18){ eData={lines,lh,h,font:eFont}; break; }
+                  eFont-=1;
+                }
+                if(eData){
+                  const eH=eData.h, eTop=EXTRA_BOTTOM - eH;
+                  const E=[];
+                  E.push(`<svg width="${CONTENT_W}" height="${eH}" xmlns="http://www.w3.org/2000/svg">`);
+                  E.push(`<rect x="0" y="0" width="${CONTENT_W}" height="${eH}" fill="${extraBoxFill}" stroke="${extraBoxStroke}" stroke-width="${extraBoxStrokeWidth}"/>`);
+                  eData.lines.forEach((ln,li)=>E.push(`<text x="24" y="${(eH-eData.lines.length*eData.lh)/2+eData.lh*0.8+li*eData.lh}" font-family="Arial,Helvetica,sans-serif" font-size="${eData.font}" font-weight="700" fill="#000000">${escapeXml(ln)}</text>`));
+                  E.push(`</svg>`);
+                  const eBuf = await sharp(Buffer.from(E.join('\n'))).png().toBuffer();
+                  composites.push({input:eBuf, left:CONTENT_LEFT, top:eTop});
+                }
+              }
             }
 
-            const safeId = qId.replace(/[^a-z0-9]/gi, '_');
+            const safeId = qId.replace(/[^a-z0-9]/gi,'_');
             const outFile = path.join(OUT_DIR, `quiz_${safeId}_${Date.now()}.png`);
-            await base.composite(composites).png({ compressionLevel: 9 }).toFile(outFile);
+            await base.composite(composites).png({compressionLevel:9}).toFile(outFile);
             console.log('Generated:', outFile);
           })();
 
-          function escapeXml(s) { return String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/'/g, '&#39;'); }
+          function escapeXml(s){return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#39;');}
           NODESCRIPT
 
       - name: Commit and push image
