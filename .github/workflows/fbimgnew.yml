@@ -75,77 +75,68 @@ jobs:
             
             // ─── FILE & DIRECTORY PATHS ─────────────────────────────────────
             const CONFIG = {
-              // Output directory for generated images
               OUT_DIR: 'perimelight/outputfbimg',
-              
-              // Directory containing optional sign images
               SIGNS_DIR: 'perimelight/signs',
-              
-              // Base overlay template image path
               OVERLAY_PATH: path.join('perimelight', 'overlay', 'new.png'),
-              
-              // Supported image extensions for sign images
               SIGN_EXTENSIONS: ['.jpg', '.jpeg', '.png', '.webp']
             };
             
             // ─── SAFE ZONE CONFIGURATION ────────────────────────────────────
             const SAFE_ZONE = {
-              // Percentage-based positioning relative to overlay image
-              x: 0.13,          // Left margin percentage
-              y: 0.15,          // Top margin percentage
-              w: 0.720,         // Width percentage
-              h: 0.713,         // Height percentage
-              PAD: 24,          // Internal padding for card content
-              TOP_OFFSET: 50,   // Card top = SAFE.y + TOP_OFFSET
-              BOTTOM_MARGIN: 40 // Minimum space below card inside safe zone
+              x: 0.13,
+              y: 0.15,
+              w: 0.720,
+              h: 0.713,
+              PAD: 24,
+              TOP_OFFSET: 50,
+              BOTTOM_MARGIN: 40,
+              MIN_CARD_HEIGHT: 200,
+              MAX_CARD_HEIGHT: 0.85 // percentage of safe zone height
             };
             
             // ─── BOTTOM BORDER CONFIGURATION ────────────────────────────────
             const BORDER = {
-              // Bottom border starts at this static Y position (relative to card top)
-              // Card grows upward from this position
-              STATIC_Y: 480,
+              SHOW: true,
+              Y_OFFSET: 28, // distance from options area
               LINE_COLOR: '#1565C0',
               LINE_WIDTH: 4,
-              LINE_OPACITY: 0.8,
-              SHOW_BORDER: true
+              LINE_OPACITY: 0.8
             };
             
             // ─── TEXT STYLING CONFIGURATION ─────────────────────────────────
             const TEXT = {
-              // Question text styling
               question: {
                 fontMultiplier: 0.05,
-                lineHeightMultiplier: 1.2,
+                minFont: 20,
+                maxFont: 36,
+                lineHeightMultiplier: 1.3,
                 color: '#1E1E1E',
                 fontWeight: 700,
                 fontFamily: 'Arial,Helvetica,sans-serif',
-                paddingX: 64,
-                paddingY: 24
+                paddingX: 40,
+                paddingY: 20
               },
-              
-              // Option text styling
               option: {
                 fontMultiplier: 0.047,
-                lineHeightMultiplier: 1.15,
+                minFont: 16,
+                maxFont: 30,
+                lineHeightMultiplier: 1.2,
                 color: '#212121',
                 fontWeight: 400,
                 fontFamily: 'Arial,Helvetica,sans-serif',
-                paddingX: 140
+                paddingX: 120
               },
-              
-              // Extra box text styling
               extra: {
                 fontMultiplier: 0.045,
+                minFont: 14,
+                maxFont: 28,
                 lineHeightMultiplier: 1.25,
                 color: '#000000',
                 fontWeight: 'bold',
                 fontFamily: 'Arial,Helvetica,sans-serif',
-                paddingX: 80,
-                paddingY: 28
+                paddingX: 60,
+                paddingY: 24
               },
-              
-              // Title text styling
               title: {
                 show: false,
                 prependQuestionNumber: true,
@@ -161,18 +152,19 @@ jobs:
             // ─── OPTION BOX CONFIGURATION ──────────────────────────────────
             const OPTION = {
               height: 72,
-              spacing: 16,
+              minHeight: 50,
+              spacing: 14,
               borderRadius: 16,
               background: '#FFFFFF',
               stroke: '#E0E0E0',
               strokeWidth: 1.5,
-              
-              // Circle styling
               circle: {
                 radius: 22,
+                minRadius: 16,
                 fill: '#E3F2FD',
                 textColor: '#1565C0',
                 fontSize: 20,
+                minFontSize: 14,
                 fontFamily: 'Arial Black,Arial,sans-serif',
                 fontWeight: 900
               }
@@ -180,46 +172,32 @@ jobs:
             
             // ─── EXTRA BOX CONFIGURATION ────────────────────────────────────
             const EXTRA = {
-              // Styling
               fill: '#FFF9C4',
               stroke: '#000000',
               strokeWidth: 1,
               borderRadius: 16,
-              minHeight: 72,
-              maxWidthPadding: 48,
-              
-              // Spacing between extra box and options
-              gap: 16,
-              
-              // Fixed position from bottom of card (grows upward)
-              fixedBottomOffset: 48  // Extra box sits 48px from bottom of card
+              minHeight: 60,
+              maxWidthPadding: 40,
+              gap: 14,
+              fixedBottomOffset: 40
             };
             
             // ─── IMAGE HANDLING CONFIGURATION ──────────────────────────────
             const IMAGE = {
-              // Tag to detect in question text
               tag: '[image]',
-              
-              // Resize constraints
               maxWidthPercent: 0.85,
-              maxHeightPercent: 0.3,
-              
-              // Spacing around image
-              marginBottom: 24,
-              marginTop: 12,
-              
-              // Default: fit inside without enlargement
+              maxHeightPercent: 0.25,
+              marginBottom: 16,
+              marginTop: 8,
               fit: 'inside',
-              withoutEnlargement: true
+              withoutEnlargement: true,
+              minHeight: 30
             };
             
             // ─── FONT SIZING ITERATION ─────────────────────────────────────
             const FONT_FITTING = {
-              maxIterations: 35,
-              minQuestionFont: 28,
-              minOptionFont: 22,
-              reductionStepQuestion: 2,
-              reductionStepOption: 1
+              maxIterations: 100,
+              reductionStep: 1
             };
             
             // ─── CARD STYLING ───────────────────────────────────────────────
@@ -228,7 +206,7 @@ jobs:
               background: '#FFFFFF00',
               stroke: '#FFFFFF00',
               strokeWidth: 2,
-              bottomPadding: 48
+              padding: 20
             };
             
             // ================================================================
@@ -254,7 +232,11 @@ jobs:
             };
             
             const CARD_W = SAFE.w - SAFE_ZONE.PAD * 2;
-            const MAX_AVAILABLE_H = SAFE.h - SAFE_ZONE.BOTTOM_MARGIN;
+            const MAX_AVAILABLE_H = Math.min(
+              SAFE.h - SAFE_ZONE.BOTTOM_MARGIN,
+              SAFE.h * SAFE_ZONE.MAX_CARD_HEIGHT
+            );
+            const MIN_CARD_H = Math.min(SAFE_ZONE.MIN_CARD_HEIGHT, MAX_AVAILABLE_H);
 
             // ── INPUT PARSING ──────────────────────────────────────────────
             const qId = (process.env.INPUT_X || '1').trim();
@@ -279,17 +261,29 @@ jobs:
               for (const ext of CONFIG.SIGN_EXTENSIONS) {
                 const p = path.join(CONFIG.SIGNS_DIR, `${qId}${ext}`);
                 if (!fs.existsSync(p)) continue;
-                signBuf = await sharp(p)
-                  .resize(
-                    Math.round(CARD_W * IMAGE.maxWidthPercent),
-                    Math.round(SAFE.h * IMAGE.maxHeightPercent),
-                    { fit: IMAGE.fit, withoutEnlargement: IMAGE.withoutEnlargement }
-                  )
-                  .png()
-                  .toBuffer();
-                const m = await sharp(signBuf).metadata();
-                signW = m.width;
-                signH = m.height;
+                try {
+                  const img = sharp(p);
+                  const meta = await img.metadata();
+                  const maxHeight = Math.min(
+                    SAFE.h * IMAGE.maxHeightPercent,
+                    MAX_AVAILABLE_H * 0.3
+                  );
+                  const maxWidth = Math.round(CARD_W * IMAGE.maxWidthPercent);
+                  
+                  signBuf = await img
+                    .resize(maxWidth, maxHeight, { 
+                      fit: IMAGE.fit, 
+                      withoutEnlargement: IMAGE.withoutEnlargement 
+                    })
+                    .png()
+                    .toBuffer();
+                  const m = await sharp(signBuf).metadata();
+                  signW = m.width;
+                  signH = Math.max(m.height, IMAGE.minHeight);
+                } catch (e) {
+                  console.warn(`Failed to process image ${p}:`, e.message);
+                  signBuf = null;
+                }
                 break;
               }
             }
@@ -305,7 +299,7 @@ jobs:
             };
 
             const opts = ['a','b','c','d']
-              .filter(k => rawOpts[k])
+              .filter(k => rawOpts[k] && rawOpts[k].length > 0)
               .map(k => {
                 let text = rawOpts[k];
                 let cleanText = cleanOptionText(text, k);
@@ -321,10 +315,16 @@ jobs:
                             /[a-z]/.test(ch) ? 0.52 :
                             /[0-9]/.test(ch) ? 0.58 : 0.56;
             
-            const textW = (s, fs) => [...String(s)].reduce((a, c) => a + cw(c) * fs, 0);
+            const textW = (s, fs) => {
+              if (!s) return 0;
+              return [...String(s)].reduce((a, c) => a + cw(c) * fs, 0);
+            };
             
             const wrap = (t, maxW, fs) => {
+              if (!t || t.length === 0) return [''];
               const words = String(t).trim().split(/\s+/);
+              if (words.length === 0) return [''];
+              
               const lines = [];
               let current = '';
               
@@ -341,7 +341,7 @@ jobs:
                     if (textW(partial + ch, fs) <= maxW) {
                       partial += ch;
                     } else {
-                      lines.push(partial);
+                      if (partial) lines.push(partial);
                       partial = ch;
                     }
                   }
@@ -351,177 +351,238 @@ jobs:
                 }
               }
               if (current) lines.push(current);
-              return lines;
+              return lines.length > 0 ? lines : [''];
             };
 
             // ── QUESTION TEXT ─────────────────────────────────────────────────
-            let displayText = qText;
+            let displayText = qText || 'Question';
             if (TEXT.title.prependQuestionNumber) {
-              displayText = `Q${qId}: ${qText}`;
+              displayText = `Q${qId}: ${displayText}`;
             }
 
-            // ── 1. CALCULATE LAYOUT (growing upward from bottom) ────────────
-            let qFont = Math.round(CARD_W * TEXT.question.fontMultiplier);
-            let oFont = Math.round(CARD_W * TEXT.option.fontMultiplier);
-            let baseLayout = null;
+            // ── 1. CALCULATE LAYOUT WITH ADAPTIVE FITTING ──────────────────
+            let qFont = Math.min(
+              Math.max(Math.round(CARD_W * TEXT.question.fontMultiplier), TEXT.question.minFont),
+              TEXT.question.maxFont
+            );
+            let oFont = Math.min(
+              Math.max(Math.round(CARD_W * TEXT.option.fontMultiplier), TEXT.option.minFont),
+              TEXT.option.maxFont
+            );
+            let extraFont = Math.min(
+              Math.max(Math.round(CARD_W * TEXT.extra.fontMultiplier), TEXT.extra.minFont),
+              TEXT.extra.maxFont
+            );
             
-            for (let i = 0; i < FONT_FITTING.maxIterations; i++) {
+            let bestLayout = null;
+            let bestHeight = Infinity;
+            
+            // Try multiple font combinations
+            for (let attempt = 0; attempt < FONT_FITTING.maxIterations; attempt++) {
+              // Calculate wrapped text
               const qLines = wrap(displayText, CARD_W - TEXT.question.paddingX, qFont);
               const qLH = qFont * TEXT.question.lineHeightMultiplier;
+              const qH = Math.max(qLines.length * qLH + TEXT.question.paddingY, 40);
               
+              // Calculate options
               const oData = opts.map(o => {
                 const ls = wrap(o.t, CARD_W - TEXT.option.paddingX, oFont);
                 const lh = oFont * TEXT.option.lineHeightMultiplier;
-                const h = Math.max(OPTION.height, ls.length * lh + 28);
+                const h = Math.max(
+                  Math.min(OPTION.height, OPTION.minHeight + 20),
+                  ls.length * lh + 28
+                );
                 return { ...o, ls, lh, h };
               });
               
-              // Calculate extra box data (always at bottom)
+              // Calculate extra box
               let extraData = null;
               if (hasExtraText) {
-                const extraFont = Math.round(CARD_W * TEXT.extra.fontMultiplier);
                 const maxW = CARD_W - EXTRA.maxWidthPadding;
                 const extraLines = wrap(extraText, maxW, extraFont);
                 const extraLH = extraFont * TEXT.extra.lineHeightMultiplier;
-                const extraH = Math.max(EXTRA.minHeight, extraLines.length * extraLH + EXTRA.paddingY);
-                extraData = { 
-                  lines: extraLines, 
-                  lh: extraLH, 
-                  h: extraH, 
-                  font: extraFont 
-                };
+                const extraH = Math.max(
+                  EXTRA.minHeight,
+                  extraLines.length * extraLH + TEXT.extra.paddingY
+                );
+                extraData = { lines: extraLines, lh: extraLH, h: extraH, font: extraFont };
               }
               
-              const titleH = TEXT.title.show ? TEXT.title.height : 20;
-              const qH = qLines.length * qLH + TEXT.question.paddingY;
-              const signBlock = signH ? signH + IMAGE.marginBottom + IMAGE.marginTop : 0;
-              
-              // Calculate total height needed above border
-              let totalHeight = 0;
-              
-              // Build from bottom up: extra box first (at very bottom), then options, sign, question
-              if (hasExtraText && extraData) {
-                totalHeight += extraData.h + EXTRA.gap;
-              }
-              
-              const optsH = oData.reduce((s, o) => s + o.h, 0) + (oData.length - 1) * OPTION.spacing;
-              totalHeight += optsH;
-              
-              if (oData.length > 0 && hasExtraText) {
-                totalHeight += OPTION.spacing; // spacing between options and extra
-              }
-              
-              if (signBlock) totalHeight += signBlock;
-              totalHeight += qH;
+              // Calculate total height
+              let totalHeight = CARD.padding;
+              const titleH = TEXT.title.show ? TEXT.title.height : 0;
               totalHeight += titleH;
-              totalHeight += CARD.bottomPadding;
+              totalHeight += qH;
               
-              // Check if content fits within safe zone
-              const cardTop = SAFE.y + SAFE_ZONE.TOP_OFFSET;
-              const neededHeight = totalHeight;
+              if (signH > 0) {
+                totalHeight += signH + IMAGE.marginTop + IMAGE.marginBottom;
+              }
               
-              if (neededHeight <= MAX_AVAILABLE_H) {
-                baseLayout = { 
-                  qFont, oFont, qLines, qLH, oData, 
-                  titleH, qH, signBlock, optsH, 
-                  totalHeight: neededHeight, 
-                  cardTop,
-                  extraData: extraData || null,
-                  hasExtraText: hasExtraText
+              // Options
+              const optsH = oData.reduce((s, o) => s + o.h, 0) + (oData.length - 1) * OPTION.spacing;
+              if (oData.length > 0) {
+                totalHeight += optsH;
+              }
+              
+              // Extra box (at bottom)
+              if (hasExtraText && extraData) {
+                totalHeight += EXTRA.gap + extraData.h;
+              }
+              
+              totalHeight += CARD.padding;
+              
+              // Check if this layout fits
+              if (totalHeight <= MAX_AVAILABLE_H && totalHeight < bestHeight) {
+                bestHeight = totalHeight;
+                bestLayout = {
+                  qFont, oFont, extraFont,
+                  qLines, qLH, qH,
+                  oData, optsH,
+                  extraData,
+                  totalHeight,
+                  titleH,
+                  signH
                 };
-                break;
               }
               
-              // Reduce fonts to fit
-              if (qLines.length > 3 && qFont > FONT_FITTING.minQuestionFont) {
-                qFont -= FONT_FITTING.reductionStepQuestion;
-              } else if (oFont > FONT_FITTING.minOptionFont) {
-                oFont -= FONT_FITTING.reductionStepOption;
-              } else {
-                qFont -= 1;
+              // Try to reduce font sizes for next iteration
+              let reduced = false;
+              if (qFont > TEXT.question.minFont && attempt % 2 === 0) {
+                qFont = Math.max(qFont - FONT_FITTING.reductionStep, TEXT.question.minFont);
+                reduced = true;
               }
+              if (oFont > TEXT.option.minFont && (attempt % 3 === 0 || !reduced)) {
+                oFont = Math.max(oFont - FONT_FITTING.reductionStep, TEXT.option.minFont);
+                reduced = true;
+              }
+              if (hasExtraText && extraFont > TEXT.extra.minFont && (attempt % 4 === 0 || !reduced)) {
+                extraFont = Math.max(extraFont - FONT_FITTING.reductionStep, TEXT.extra.minFont);
+                reduced = true;
+              }
+              if (!reduced) break;
             }
             
-            if (!baseLayout) throw new Error('Content too long for safe zone.');
+            // If no layout fits, use the best found or create minimal layout
+            if (!bestLayout) {
+              console.warn('Content too large, creating minimal layout with truncation');
+              
+              // Force minimal layout
+              const qLines = wrap(displayText.substring(0, 100), CARD_W - TEXT.question.paddingX, TEXT.question.minFont);
+              const qLH = TEXT.question.minFont * TEXT.question.lineHeightMultiplier;
+              const qH = Math.min(qLines.length * qLH + TEXT.question.paddingY, MAX_AVAILABLE_H * 0.3);
+              
+              const oData = opts.slice(0, 2).map(o => ({
+                ...o,
+                ls: wrap(o.t.substring(0, 50), CARD_W - TEXT.option.paddingX, TEXT.option.minFont),
+                lh: TEXT.option.minFont * TEXT.option.lineHeightMultiplier,
+                h: Math.max(OPTION.minHeight, 50)
+              }));
+              
+              bestLayout = {
+                qFont: TEXT.question.minFont,
+                oFont: TEXT.option.minFont,
+                extraFont: TEXT.extra.minFont,
+                qLines,
+                qLH,
+                qH,
+                oData,
+                optsH: oData.length * 60,
+                extraData: hasExtraText ? {
+                  lines: wrap(extraText.substring(0, 80), CARD_W - EXTRA.maxWidthPadding, TEXT.extra.minFont),
+                  lh: TEXT.extra.minFont * TEXT.extra.lineHeightMultiplier,
+                  h: EXTRA.minHeight,
+                  font: TEXT.extra.minFont
+                } : null,
+                totalHeight: Math.min(MAX_AVAILABLE_H, 400),
+                titleH: 0,
+                signH: 0
+              };
+            }
 
             // ── 2. BUILD CARD SVG ──────────────────────────────────────────
-            const CARD_H = Math.min(baseLayout.totalHeight, MAX_AVAILABLE_H);
-            const cardTop = baseLayout.cardTop;
+            const CARD_H = Math.min(bestLayout.totalHeight, MAX_AVAILABLE_H);
+            const cardTop = SAFE.y + SAFE_ZONE.TOP_OFFSET;
             const cardLeft = Math.round(SAFE.x + (SAFE.w - CARD_W) / 2);
             
             const C = [];
             C.push(`<svg width="${CARD_W}" height="${CARD_H}" xmlns="http://www.w3.org/2000/svg">`);
             C.push(`<rect x="0" y="0" width="${CARD_W}" height="${CARD_H}" rx="${CARD.borderRadius}" fill="${CARD.background}" stroke="${CARD.stroke}" stroke-width="${CARD.strokeWidth}"/>`);
 
-            // ── DRAW CONTENT FROM BOTTOM UP ─────────────────────────────────
-            let y = CARD_H - CARD.bottomPadding;
+            // ── BUILD FROM BOTTOM UP ──────────────────────────────────────
+            let y = CARD_H - CARD.padding;
             
-            // First draw extra box (at bottom, fixed position)
-            if (baseLayout.hasExtraText && baseLayout.extraData) {
-              const e = baseLayout.extraData;
+            // 1. Extra box (bottom)
+            if (hasExtraText && bestLayout.extraData) {
+              const e = bestLayout.extraData;
               y -= e.h;
               C.push(`<rect x="${EXTRA.maxWidthPadding / 2}" y="${y}" width="${CARD_W - EXTRA.maxWidthPadding}" height="${e.h}" rx="${EXTRA.borderRadius}" fill="${EXTRA.fill}" stroke="${EXTRA.stroke}" stroke-width="${EXTRA.strokeWidth}"/>`);
               
-              e.lines.forEach((ln, li) => {
-                const textY = y + (e.h - e.lines.length * e.lh) / 2 + e.lh * 0.8 + li * e.lh;
-                C.push(`<text x="${EXTRA.maxWidthPadding}" y="${textY}" font-family="${TEXT.extra.fontFamily}" font-size="${e.font}" font-weight="${TEXT.extra.fontWeight}" fill="${TEXT.extra.color}">${escapeXml(ln)}</text>`);
-              });
+              if (e.lines && e.lines.length > 0 && e.lines[0].length > 0) {
+                e.lines.forEach((ln, li) => {
+                  const textY = y + (e.h - e.lines.length * e.lh) / 2 + e.lh * 0.8 + li * e.lh;
+                  C.push(`<text x="${EXTRA.maxWidthPadding}" y="${textY}" font-family="${TEXT.extra.fontFamily}" font-size="${e.font}" font-weight="${TEXT.extra.fontWeight}" fill="${TEXT.extra.color}">${escapeXml(ln)}</text>`);
+                });
+              }
               y -= EXTRA.gap;
             }
             
-            // Draw options (from bottom up)
-            if (baseLayout.oData.length > 0) {
-              const reversedOpts = [...baseLayout.oData].reverse();
-              let optionY = y - baseLayout.optsH;
+            // 2. Options
+            if (bestLayout.oData && bestLayout.oData.length > 0) {
+              const reversedOpts = [...bestLayout.oData].reverse();
+              let optionY = y - bestLayout.optsH;
               
               reversedOpts.forEach((o, index) => {
-                const actualIndex = baseLayout.oData.length - 1 - index;
-                const oData = baseLayout.oData[actualIndex];
+                const actualIndex = bestLayout.oData.length - 1 - index;
+                const oData = bestLayout.oData[actualIndex];
                 const oY = optionY + oData.h;
                 
+                // Option box
                 C.push(`<rect x="24" y="${oY - oData.h}" width="${CARD_W - 48}" height="${oData.h}" rx="${OPTION.borderRadius}" fill="${OPTION.background}" stroke="${OPTION.stroke}" stroke-width="${OPTION.strokeWidth}"/>`);
-                C.push(`<circle cx="60" cy="${oY - oData.h / 2}" r="${OPTION.circle.radius}" fill="${OPTION.circle.fill}"/>`);
-                C.push(`<text x="60" y="${oY - oData.h / 2 + 7}" font-family="${OPTION.circle.fontFamily}" font-size="${OPTION.circle.fontSize}" font-weight="${OPTION.circle.fontWeight}" fill="${OPTION.circle.textColor}" text-anchor="middle">${oData.k}</text>`);
                 
-                oData.ls.forEach((ln, li) => {
-                  const textY = oY - oData.h + (oData.h - oData.ls.length * oData.lh) / 2 + oData.lh * 0.8 + li * oData.lh;
-                  C.push(`<text x="100" y="${textY}" font-family="${TEXT.option.fontFamily}" font-size="${baseLayout.oFont}" fill="${TEXT.option.color}">${escapeXml(ln)}</text>`);
-                });
+                // Circle
+                const circleR = Math.min(OPTION.circle.radius, oData.h / 2 - 4);
+                const circleFS = Math.min(OPTION.circle.fontSize, circleR * 0.9);
+                C.push(`<circle cx="60" cy="${oY - oData.h / 2}" r="${circleR}" fill="${OPTION.circle.fill}"/>`);
+                C.push(`<text x="60" y="${oY - oData.h / 2 + 7}" font-family="${OPTION.circle.fontFamily}" font-size="${circleFS}" font-weight="${OPTION.circle.fontWeight}" fill="${OPTION.circle.textColor}" text-anchor="middle">${oData.k}</text>`);
+                
+                // Option text
+                if (oData.ls && oData.ls.length > 0 && oData.ls[0].length > 0) {
+                  oData.ls.forEach((ln, li) => {
+                    const textY = oY - oData.h + (oData.h - oData.ls.length * oData.lh) / 2 + oData.lh * 0.8 + li * oData.lh;
+                    C.push(`<text x="100" y="${textY}" font-family="${TEXT.option.fontFamily}" font-size="${bestLayout.oFont}" fill="${TEXT.option.color}">${escapeXml(ln)}</text>`);
+                  });
+                }
                 
                 optionY += oData.h + OPTION.spacing;
               });
               
-              y -= baseLayout.optsH;
-              if (baseLayout.hasExtraText) y -= OPTION.spacing;
-              y -= 8; // small gap before sign
+              y -= bestLayout.optsH;
+              y -= 20; // gap before border
             }
             
-            // ── BOTTOM BORDER (drawn after content, above everything) ──────
-            if (BORDER.SHOW_BORDER) {
-              // Border sits between options and sign/question area
-              const borderY = y - 20;
+            // 3. Border
+            if (BORDER.SHOW) {
+              const borderY = y;
               C.push(`<line x1="32" y1="${borderY}" x2="${CARD_W - 32}" y2="${borderY}" stroke="${BORDER.LINE_COLOR}" stroke-width="${BORDER.LINE_WIDTH}" opacity="${BORDER.LINE_OPACITY}"/>`);
-              y = borderY - 20;
+              y -= 16;
             }
-
-            // ── SIGN IMAGE ──────────────────────────────────────────────────
-            if (signH) {
+            
+            // 4. Image
+            if (signH > 0 && signBuf) {
               y -= signH + IMAGE.marginTop;
-              // Store sign position for later composite
               const signY = y;
-              // We'll handle this in the composite step
+              // Store for composite
             }
             
-            // ── QUESTION TEXT ──────────────────────────────────────────────
-            y -= baseLayout.qH - 24;
-            if (TEXT.title.show) {
-              y -= 20;
-            }
+            // 5. Question
+            y -= bestLayout.qH - 8;
             
-            baseLayout.qLines.forEach((ln, i) => {
-              const textY = y + i * baseLayout.qLH;
-              C.push(`<text x="${TEXT.question.paddingX / 2}" y="${textY}" font-family="${TEXT.question.fontFamily}" font-size="${baseLayout.qFont}" font-weight="${TEXT.question.fontWeight}" fill="${TEXT.question.color}">${escapeXml(ln)}</text>`);
-            });
+            if (bestLayout.qLines && bestLayout.qLines.length > 0) {
+              bestLayout.qLines.forEach((ln, i) => {
+                const textY = y + i * bestLayout.qLH;
+                C.push(`<text x="${TEXT.question.paddingX / 2}" y="${textY}" font-family="${TEXT.question.fontFamily}" font-size="${bestLayout.qFont}" font-weight="${TEXT.question.fontWeight}" fill="${TEXT.question.color}">${escapeXml(ln)}</text>`);
+              });
+            }
 
             C.push(`</svg>`);
 
@@ -530,21 +591,20 @@ jobs:
             
             const composites = [{ input: cardBuf, left: cardLeft, top: cardTop }];
             
-            if (signBuf) {
-              // Calculate sign position within the card
-              let signY = CARD_H - CARD.bottomPadding;
-              if (baseLayout.hasExtraText && baseLayout.extraData) {
-                signY -= baseLayout.extraData.h + EXTRA.gap;
+            if (signBuf && signH > 0) {
+              // Calculate sign position
+              let signY = CARD_H - CARD.padding;
+              if (hasExtraText && bestLayout.extraData) {
+                signY -= bestLayout.extraData.h + EXTRA.gap;
               }
-              signY -= baseLayout.optsH;
-              if (baseLayout.hasExtraText) signY -= OPTION.spacing;
-              signY -= 28; // gap after border
+              signY -= bestLayout.optsH + 36;
               
               const signTop = Math.round(cardTop + signY - signH - IMAGE.marginTop);
               const signLeft = Math.round(cardLeft + (CARD_W - signW) / 2);
               composites.push({ input: signBuf, left: signLeft, top: signTop });
             }
 
+            // Save image
             const safeId = qId.replace(/[^a-z0-9]/gi, '_');
             const outFile = path.join(CONFIG.OUT_DIR, `quiz_${safeId}_${Date.now()}.png`);
             
@@ -553,6 +613,7 @@ jobs:
           })();
 
           function escapeXml(s) { 
+            if (!s) return '';
             return String(s)
               .replace(/&/g, '&amp;')
               .replace(/</g, '&lt;')
