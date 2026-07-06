@@ -104,7 +104,7 @@ jobs:
             const EXTRA_BOTTOM_RATIO = 0.84;     // top of bottom nav bar
             const EXTRA_MIN_GAP = 16;             // space between D and yellow box
             const extraBoxFill = "#FFF9C4";
-            const extraBoxStroke = "#CC000000";
+            const extraBoxStroke = "#E6000000";
             const extraBoxStrokeWidth = 1;
             // ================================================================
 
