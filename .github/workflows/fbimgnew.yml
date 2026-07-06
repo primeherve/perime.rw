@@ -100,11 +100,11 @@ jobs:
             
             // === NEW: extra box anchor (touches phone edges & bottom nav) ===
             const CONTENT_LEFT_RATIO = 0.159;      // left edge of white area
-            const CONTENT_RIGHT_RATIO = 0.837;    // right edge
+            const CONTENT_RIGHT_RATIO = 0.834;    // right edge
             const EXTRA_BOTTOM_RATIO = 0.84;     // top of bottom nav bar
             const EXTRA_MIN_GAP = 16;             // space between D and yellow box
             const extraBoxFill = "#FFF9C4";
-            const extraBoxStroke = "none";
+            const extraBoxStroke = "#80000000";
             const extraBoxStrokeWidth = 1;
             // ================================================================
 
