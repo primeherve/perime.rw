@@ -123,7 +123,7 @@ jobs:
             const EXTRA_FONT_MULTIPLIER   = 0.045;
             const EXTRA_LINE_HEIGHT_MULT  = 1.25;
             const EXTRA_BOX_BOTTOM_MARGIN = 20;   // space between bottom of safe zone and the extra box bottom
-            const EXTRA_BOX_WIDTH_RATIO   = 0.85;  // relative to overlay image width (exceeds safe zone!)
+            const EXTRA_BOX_WIDTH_RATIO   = 0.7;  // relative to overlay image width (exceeds safe zone!)
             const EXTRA_BOX_GAP_ABOVE     = 12;    // vertical gap between card bottom and extra box top
 
             // ====================================================================
