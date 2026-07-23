@@ -74,35 +74,29 @@ jobs:
             const SIGNS_DIR = 'perimelight/signs';
             const OVERLAY_PATH = path.join('perimelight', 'overlay', 'rise.png');
             
-            // fonts
             const qFontMultiplier = 0.05;
             const oFontMultiplier = 0.047;
             const extraFontMultiplier = 0.04;
             
-            // line heights
             const qLineHeightMultiplier = 1.2;
             const oLineHeightMultiplier = 1.15;
             const extraLineHeightMultiplier = 1.25;
             
-            // title
             const showTitleText = false;
             const prependQuestionNumber = true;
             
-            // options
             const optionBoxHeight = 72;
             const optionSpacing = 16;
             const circleRadius = 22;
             const circleFontSize = 20;
             
-            // safe zone for Q + options
             const TOP_OFFSET = 60;
             const BOTTOM_MARGIN = 40;
             
-            // === NEW: extra box anchor (touches phone edges & bottom nav) ===
-            const CONTENT_LEFT_RATIO = 0.159;      // left edge of white area
-            const CONTENT_RIGHT_RATIO = 0.834;    // right edge
-            const EXTRA_BOTTOM_RATIO = 0.841;     // top of bottom nav bar
-            const EXTRA_MIN_GAP = 16;             // space between D and yellow box
+            const CONTENT_LEFT_RATIO = 0.159;
+            const CONTENT_RIGHT_RATIO = 0.834;
+            const EXTRA_BOTTOM_RATIO = 0.841;
+            const EXTRA_MIN_GAP = 16;
             const extraBoxFill = "#FFF9C4";
             const extraBoxStroke = "black";
             const extraBoxStrokeWidth = 1;
@@ -113,20 +107,17 @@ jobs:
             const base = sharp(OVERLAY_PATH);
             const { width: W, height: H } = await base.metadata();
 
-            // safe zone
             const SAFE = { x: Math.round(W*0.13), y: Math.round(H*0.15), w: Math.round(W*0.720), h: Math.round(H*0.713) };
             const PAD = 24;
             const CARD_W = SAFE.w - PAD*2;
             const MAX_AVAILABLE_H = SAFE.h - BOTTOM_MARGIN;
 
-            // inputs
             const qId = (process.env.INPUT_X || '1').trim();
             let qText = (process.env.INPUT_Q || '').replace(/\s+/g,' ').trim();
             const rawOpts = { a:process.env.INPUT_A||'', b:process.env.INPUT_B||'', c:process.env.INPUT_C||'', d:process.env.INPUT_D||'' };
             const extraText = (process.env.INPUT_E || '').trim();
             const hasExtra = extraText.length>0;
 
-            // optional sign
             const hasImg = /\[image\]/i.test(qText);
             if (hasImg) qText = qText.replace(/\[image\]/i,'').trim();
             let signBuf=null, signH=0, signW=0;
@@ -139,18 +130,36 @@ jobs:
               }
             }
 
-            // clean options
-            const clean = (t,k)=>{ const p=new RegExp(`^${k}\\s*[\\.\\)\\-\\:\\s]+`,'i'); return p.test(t)?t.replace(p,'').trim():t };
-            const opts = ['a','b','c','d'].filter(k=>rawOpts[k]).map(k=>({k:k.toUpperCase(), t:clean(rawOpts[k],k).replace(/^./,c=>c.toUpperCase())}));
+            // ---------- FIXED: clean options (handles numbers and strings) ----------
+            const clean = (t, k) => {
+              t = String(t);  // ensure we have a string
+              const p = new RegExp(`^${String(k)}\\s*[\\.\\)\\-\\:\\s]+`, 'i');
+              return p.test(t) ? t.replace(p, '').trim() : t.trim();
+            };
+            const opts = ['a','b','c','d']
+              .filter(k => {
+                const v = rawOpts[k];
+                return v !== undefined && v !== null && String(v).trim() !== '';
+              })
+              .map(k => ({
+                k: k.toUpperCase(),
+                t: (() => {
+                  let cleaned = clean(rawOpts[k], k);
+                  // safe capitalisation – works with numeric first characters as well
+                  if (cleaned.length > 0) {
+                    return String(cleaned[0]).toUpperCase() + cleaned.slice(1);
+                  }
+                  return cleaned;
+                })()
+              }));
+            // ---------------------------------------------------------------------
 
-            // helpers
             const cw = ch=>/[iIl1|!.,;:'`"()\[\]{}\\\/]/.test(ch)?0.34:/[mwMW@%]/.test(ch)?0.72:/[A-Z]/.test(ch)?0.66:/[a-z]/.test(ch)?0.52:/[0-9]/.test(ch)?0.58:0.56;
             const textW = (s,fs)=>[...String(s)].reduce((a,c)=>a+cw(c)*fs,0);
             const wrap = (t,maxW,fs)=>{ const w=String(t).trim().split(/\s+/), L=[]; let c=''; for(const wd of w){ const tr=c?c+' '+wd:wd; if(textW(tr,fs)<=maxW){c=tr;continue} if(c)L.push(c); if(textW(wd,fs)>maxW){let p=''; for(const ch of wd){if(textW(p+ch,fs)<=maxW)p+=ch; else{L.push(p);p=ch}} c=p}else c=wd } if(c)L.push(c); return L };
 
             let displayText = prependQuestionNumber ? `Q${qId}: ${qText}` : qText;
 
-            // ---- 1. fit Q + options ----
             let qFont=Math.round(CARD_W*qFontMultiplier), oFont=Math.round(CARD_W*oFontMultiplier), baseLayout=null;
             for(let i=0;i<35;i++){
               const qLines=wrap(displayText, CARD_W-64, qFont), qLH=qFont*qLineHeightMultiplier;
@@ -168,7 +177,6 @@ jobs:
             const CARD_H = baseLayout.totalH;
             const lastOptionBottom = cardTop + baseLayout.titleH + baseLayout.qH + baseLayout.signBlock + baseLayout.optsH;
 
-            // ---- 2. build main card SVG (no extra box inside) ----
             const C=[];
             C.push(`<svg width="${CARD_W}" height="${CARD_H}" xmlns="http://www.w3.org/2000/svg">`);
             C.push(`<rect x="0" y="0" width="${CARD_W}" height="${CARD_H}" rx="26" fill="#FFFFFF00"/>`);
@@ -186,7 +194,6 @@ jobs:
             C.push(`</svg>`);
             const cardBuf = await sharp(Buffer.from(C.join('\n'))).png().toBuffer();
 
-            // ---- 3. extra yellow box anchored to bottom nav ----
             const composites = [{input:cardBuf, left:cardLeft, top:cardTop}];
             if(signBuf){
               const signTop = Math.round(cardTop+baseLayout.titleH+baseLayout.qH+12);
@@ -212,7 +219,7 @@ jobs:
                 }
                 if(eData){
                   const eH = eData.h;
-                  const eTop = Math.round(EXTRA_BOTTOM - eH);   // <-- ensures integer
+                  const eTop = Math.round(EXTRA_BOTTOM - eH);
                   const E=[];
                   E.push(`<svg width="${CONTENT_W}" height="${eH}" xmlns="http://www.w3.org/2000/svg">`);
                   E.push(`<rect x="0" y="0" width="${CONTENT_W}" height="${eH}" fill="${extraBoxFill}" stroke="${extraBoxStroke}" stroke-width="${extraBoxStrokeWidth}"/>`);
