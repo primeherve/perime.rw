@@ -93,9 +93,9 @@ jobs:
             const TOP_OFFSET = 60;
             const BOTTOM_MARGIN = 40;
             
-            const CONTENT_LEFT_RATIO = 0.159;
-            const CONTENT_RIGHT_RATIO = 0.834;
-            const EXTRA_BOTTOM_RATIO = 0.841;
+            const CONTENT_LEFT_RATIO = 0.155;
+            const CONTENT_RIGHT_RATIO = 0.835;
+            const EXTRA_BOTTOM_RATIO = 0.821;
             const EXTRA_MIN_GAP = 16;
             const extraBoxFill = "#FFF9C4";
             const extraBoxStroke = "black";
