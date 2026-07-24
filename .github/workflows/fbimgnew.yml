@@ -1,4 +1,4 @@
-name: Generate Quiz Video for Facebook
+ name: Generate Quiz Image for Facebook
 
 on:
   workflow_dispatch:
@@ -54,7 +54,7 @@ jobs:
       - name: Install Sharp
         run: npm install sharp --no-fund --no-audit --loglevel=error
 
-      - name: Generate Quiz Video
+      - name: Generate Quiz Image
         env:
           INPUT_Q: ${{ github.event.inputs.q }}
           INPUT_A: ${{ github.event.inputs.a }}
@@ -67,16 +67,12 @@ jobs:
         run: |
           node --input-type=commonjs - <<'NODESCRIPT'
           (async () => {
-            const fs = require('fs');
-            const path = require('path');
-            const sharp = require('sharp');
-            const { execSync } = require('child_process');
+            const fs = require('fs'), path = require('path'), sharp = require('sharp');
 
             // ====================== CONFIGURATION ============================
-            const OUT_DIR = 'perimelight/outputfbvideo';
+            const OUT_DIR = 'perimelight/outputfbimg';
             const SIGNS_DIR = 'perimelight/signs';
-            const OVERLAY_PATH = path.join('perimelight', 'overlay', 'video.jpg');
-            const SONGS_DIR = 'perimelight/song';
+            const OVERLAY_PATH = path.join('perimelight', 'overlay', 'rise.jpg');
             
             const qFontMultiplier = 0.05;
             const oFontMultiplier = 0.047;
@@ -107,7 +103,7 @@ jobs:
             // ================================================================
 
             fs.mkdirSync(OUT_DIR, { recursive: true });
-            if (!fs.existsSync(OVERLAY_PATH)) throw new Error('Missing overlay: perimelight/overlay/video.jpg');
+            if (!fs.existsSync(OVERLAY_PATH)) throw new Error('Missing overlay: perimelight/overlay/rise.jpg');
             const base = sharp(OVERLAY_PATH);
             const { width: W, height: H } = await base.metadata();
 
@@ -136,7 +132,7 @@ jobs:
 
             // ---------- FIXED: clean options (handles numbers and strings) ----------
             const clean = (t, k) => {
-              t = String(t);
+              t = String(t);  // ensure we have a string
               const p = new RegExp(`^${String(k)}\\s*[\\.\\)\\-\\:\\s]+`, 'i');
               return p.test(t) ? t.replace(p, '').trim() : t.trim();
             };
@@ -149,6 +145,7 @@ jobs:
                 k: k.toUpperCase(),
                 t: (() => {
                   let cleaned = clean(rawOpts[k], k);
+                  // safe capitalisation – works with numeric first characters as well
                   if (cleaned.length > 0) {
                     return String(cleaned[0]).toUpperCase() + cleaned.slice(1);
                   }
@@ -234,47 +231,18 @@ jobs:
               }
             }
 
-            // ---------- Generate temporary image ----------
             const safeId = qId.replace(/[^a-z0-9]/gi,'_');
-            const tmpImg = `/tmp/quiz_${safeId}.png`;
-            await base.composite(composites).png({compressionLevel:9}).toFile(tmpImg);
-            console.log('Temporary image created:', tmpImg);
-
-            // ---------- Pick a random song ----------
-            if (!fs.existsSync(SONGS_DIR)) {
-              throw new Error(`Songs directory "${SONGS_DIR}" does not exist.`);
-            }
-            const songFiles = fs.readdirSync(SONGS_DIR)
-              .filter(f => /\.(mp3|m4a|wav|aac|flac|ogg)$/i.test(f))
-              .map(f => path.join(SONGS_DIR, f));
-            if (songFiles.length === 0) {
-              throw new Error(`No audio files found in "${SONGS_DIR}".`);
-            }
-            const randomSong = songFiles[Math.floor(Math.random() * songFiles.length)];
-            console.log('Selected song:', randomSong);
-
-            // ---------- Create video with FFmpeg ----------
-            const videoFile = path.join(OUT_DIR, `quiz_${safeId}_${Date.now()}.mp4`);
-            const ffmpegCmd =
-              `ffmpeg -y -loop 1 -i "${tmpImg}" -stream_loop -1 -i "${randomSong}" ` +
-              `-c:v libx264 -t 5 -pix_fmt yuv420p -c:a aac -movflags +faststart "${videoFile}"`;
-            console.log('Running FFmpeg...');
-            execSync(ffmpegCmd, { stdio: 'inherit' });
-
-            // ---------- Cleanup ----------
-            fs.unlinkSync(tmpImg);
-            console.log('Generated video:', videoFile);
-
-            // Write output filename to a file for later steps (optional)
-            fs.writeFileSync('/tmp/video_path.txt', videoFile);
+            const outFile = path.join(OUT_DIR, `quiz_${safeId}_${Date.now()}.png`);
+            await base.composite(composites).png({compressionLevel:9}).toFile(outFile);
+            console.log('Generated:', outFile);
           })();
 
           function escapeXml(s){return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#39;');}
           NODESCRIPT
 
-      - name: Commit and push video
+      - name: Commit and push image
         run: |
           git config user.name "GitHub Actions"
           git config user.email "actions@github.com"
-          git add perimelight/outputfbvideo/
-          git diff --staged --quiet || (git commit -m "Add quiz video Q${{ github.event.inputs.x }}" && git push)
+          git add perimelight/outputfbimg/
+          git diff --staged --quiet || (git commit -m "Add quiz image Q${{ github.event.inputs.x }}" && git push)
