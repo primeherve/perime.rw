@@ -251,13 +251,16 @@ jobs:
             if (metaAfter.width % 2 !== 0 || metaAfter.height % 2 !== 0) {
               const evenW = metaAfter.width % 2 ? metaAfter.width + 1 : metaAfter.width;
               const evenH = metaAfter.height % 2 ? metaAfter.height + 1 : metaAfter.height;
+              const tmpPadded = `/tmp/quiz_${safeId}_even.png`;
               await sharp(tmpImg)
                 .extend({
                   bottom: evenH - metaAfter.height,
                   right: evenW - metaAfter.width,
                   background: { r: 0, g: 0, b: 0, alpha: 0 }
                 })
-                .toFile(tmpImg);
+                .toFile(tmpPadded);
+              fs.unlinkSync(tmpImg);
+              fs.renameSync(tmpPadded, tmpImg);
               console.log('Padded to even dimensions:', evenW, 'x', evenH);
             }
 
