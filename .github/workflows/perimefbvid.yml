@@ -55,7 +55,6 @@ jobs:
       - name: Install Sharp
         run: npm install sharp --no-fund --no-audit --loglevel=error
 
-      # 👇 Install ffmpeg – this fixes the "ffmpeg: not found" error
       - name: Install ffmpeg
         run: |
           sudo apt-get update -y
@@ -246,6 +245,21 @@ jobs:
             const tmpImg = `/tmp/quiz_${safeId}.png`;
             await base.composite(composites).png({compressionLevel:9}).toFile(tmpImg);
             console.log('Temporary image created:', tmpImg);
+
+            // ---------- FIX: Ensure even dimensions for libx264 ----------
+            const metaAfter = await sharp(tmpImg).metadata();
+            if (metaAfter.width % 2 !== 0 || metaAfter.height % 2 !== 0) {
+              const evenW = metaAfter.width % 2 ? metaAfter.width + 1 : metaAfter.width;
+              const evenH = metaAfter.height % 2 ? metaAfter.height + 1 : metaAfter.height;
+              await sharp(tmpImg)
+                .extend({
+                  bottom: evenH - metaAfter.height,
+                  right: evenW - metaAfter.width,
+                  background: { r: 0, g: 0, b: 0, alpha: 0 }
+                })
+                .toFile(tmpImg);
+              console.log('Padded to even dimensions:', evenW, 'x', evenH);
+            }
 
             // ---------- Pick a random song ----------
             if (!fs.existsSync(SONGS_DIR)) {
