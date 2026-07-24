@@ -81,7 +81,7 @@ jobs:
             // ====================== CONFIGURATION ============================
             const OUT_DIR = 'perimelight/outputfbvideo';
             const SIGNS_DIR = 'perimelight/signs';
-            const OVERLAY_PATH = path.join('perimelight', 'overlay', 'rise.jpg');
+            const OVERLAY_PATH = path.join('perimelight', 'overlay', 'video.jpg');
             const SONGS_DIR = 'perimelight/song';
             
             const qFontMultiplier = 0.05;
@@ -113,7 +113,7 @@ jobs:
             // ================================================================
 
             fs.mkdirSync(OUT_DIR, { recursive: true });
-            if (!fs.existsSync(OVERLAY_PATH)) throw new Error('Missing overlay: perimelight/overlay/rise.jpg');
+            if (!fs.existsSync(OVERLAY_PATH)) throw new Error('Missing overlay: perimelight/overlay/video.jpg');
             const base = sharp(OVERLAY_PATH);
             const { width: W, height: H } = await base.metadata();
 
