@@ -47,12 +47,19 @@ jobs:
       contents: write
     steps:
       - uses: actions/checkout@v4
+
       - uses: actions/setup-node@v4
         with:
           node-version: '20'
 
       - name: Install Sharp
         run: npm install sharp --no-fund --no-audit --loglevel=error
+
+      # 👇 Install ffmpeg – this fixes the "ffmpeg: not found" error
+      - name: Install ffmpeg
+        run: |
+          sudo apt-get update -y
+          sudo apt-get install -y ffmpeg
 
       - name: Generate Quiz Video
         env:
