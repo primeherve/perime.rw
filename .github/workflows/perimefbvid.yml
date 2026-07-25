@@ -84,9 +84,9 @@ jobs:
             const OVERLAY_PATH = path.join('perimelight', 'overlay', 'video.jpg');
             const SONGS_DIR = 'perimelight/song';
             
-            const qFontMultiplier = 0.05;
-            const oFontMultiplier = 0.047;
-            const extraFontMultiplier = 0.04;
+            const qFontMultiplier = 0.055;
+            const oFontMultiplier = 0.052;
+            const extraFontMultiplier = 0.05;
             
             const qLineHeightMultiplier = 1.2;
             const oLineHeightMultiplier = 1.15;
@@ -103,8 +103,8 @@ jobs:
             const TOP_OFFSET = 60;
             const BOTTOM_MARGIN = 40;
             
-            const CONTENT_LEFT_RATIO = 0.155;
-            const CONTENT_RIGHT_RATIO = 0.835;
+            const CONTENT_LEFT_RATIO = 0.04505;
+            const CONTENT_RIGHT_RATIO = 0.9505;
             const EXTRA_BOTTOM_RATIO = 0.821;
             const EXTRA_MIN_GAP = 16;
             const extraBoxFill = "#FFF9C4";
@@ -117,7 +117,7 @@ jobs:
             const base = sharp(OVERLAY_PATH);
             const { width: W, height: H } = await base.metadata();
 
-            const SAFE = { x: Math.round(W*0.13), y: Math.round(H*0.15), w: Math.round(W*0.720), h: Math.round(H*0.713) };
+            const SAFE = { x: Math.round(W*0.014), y: Math.round(H*0.15), w: Math.round(W*0.96), h: Math.round(H*0.7) };
             const PAD = 24;
             const CARD_W = SAFE.w - PAD*2;
             const MAX_AVAILABLE_H = SAFE.h - BOTTOM_MARGIN;
