@@ -103,6 +103,14 @@ jobs:
             const TOP_OFFSET = 60;
             const BOTTOM_MARGIN = 40;
             
+            // === FONT SIZE LIMITS (Readability Hard Bounds) ===
+            const MIN_QUESTION_FONT = 24;    // Never go below this
+            const MAX_QUESTION_FONT = 60;    // Never go above this
+            const MIN_OPTION_FONT = 20;      // Never go below this
+            const MAX_OPTION_FONT = 52;      // Never go above this
+            const MIN_EXTRA_FONT = 18;       // Never go below this
+            const MAX_EXTRA_FONT = 48;       // Never go above this
+            
             const CONTENT_LEFT_RATIO = 0.04505;
             const CONTENT_RIGHT_RATIO = 0.9505;
             const EXTRA_BOTTOM_RATIO = 0.821;
@@ -117,7 +125,7 @@ jobs:
             const base = sharp(OVERLAY_PATH);
             const { width: W, height: H } = await base.metadata();
 
-            const SAFE = { x: Math.round(W*0.014), y: Math.round(H*0.15), w: Math.round(W*0.96), h: Math.round(H*0.69) };
+            const SAFE = { x: Math.round(W*0.014), y: Math.round(H*0.13), w: Math.round(W*0.96), h: Math.round(H*0.7) };
             const PAD = 24;
             const CARD_W = SAFE.w - PAD*2;
             const MAX_AVAILABLE_H = SAFE.h - BOTTOM_MARGIN;
@@ -169,17 +177,89 @@ jobs:
 
             let displayText = prependQuestionNumber ? `Q${qId}: ${qText}` : qText;
 
-            let qFont=Math.round(CARD_W*qFontMultiplier), oFont=Math.round(CARD_W*oFontMultiplier), baseLayout=null;
+            // ---- 1. Fit Q + options with equal priority ----
+            let qFont = Math.min(MAX_QUESTION_FONT, Math.round(CARD_W * qFontMultiplier));
+            let oFont = Math.min(MAX_OPTION_FONT, Math.round(CARD_W * oFontMultiplier));
+            let baseLayout = null;
+
             for(let i=0;i<35;i++){
-              const qLines=wrap(displayText, CARD_W-64, qFont), qLH=qFont*qLineHeightMultiplier;
-              const oData=opts.map(o=>{ const ls=wrap(o.t, CARD_W-140, oFont); const lh=oFont*oLineHeightMultiplier; const h=Math.max(optionBoxHeight, ls.length*lh+28); return {...o,ls,lh,h}; });
-              const titleH=showTitleText?70:20, qH=qLines.length*qLH+24, signBlock=signH?signH+24:0;
+              const qLines=wrap(displayText, CARD_W-64, qFont);
+              const qLH=qFont*qLineHeightMultiplier;
+              const qH=qLines.length*qLH+24;
+              
+              const oData=opts.map(o=>{ 
+                const ls=wrap(o.t, CARD_W-140, oFont); 
+                const lh=oFont*oLineHeightMultiplier; 
+                const h=Math.max(optionBoxHeight, ls.length*lh+28); 
+                return {...o,ls,lh,h}; 
+              });
+              
+              const titleH=showTitleText?70:20;
+              const signBlock=signH?signH+24:0;
               const optsH=oData.reduce((s,o)=>s+o.h,0)+(oData.length-1)*optionSpacing;
               const totalH=titleH+qH+signBlock+optsH+48;
-              if(totalH<=MAX_AVAILABLE_H){ baseLayout={qFont,oFont,qLines,qLH,oData,titleH,qH,signBlock,optsH,totalH}; break; }
-              if(qLines.length>3 && qFont>28) qFont-=2; else if(oFont>22) oFont-=1; else qFont-=1;
+              
+              if(totalH<=MAX_AVAILABLE_H){ 
+                baseLayout={qFont,oFont,qLines,qLH,oData,titleH,qH,signBlock,optsH,totalH}; 
+                break; 
+              }
+
+              // --- EQUAL PRIORITY REDUCTION ---
+              const canReduceQ = qFont > MIN_QUESTION_FONT;
+              const canReduceO = oFont > MIN_OPTION_FONT;
+              
+              if (!canReduceQ && !canReduceO) break;
+              
+              const qRoom = qFont - MIN_QUESTION_FONT;
+              const oRoom = oFont - MIN_OPTION_FONT;
+              
+              if (qRoom > oRoom) {
+                qFont = Math.max(MIN_QUESTION_FONT, qFont - 2);
+              } else if (oRoom > qRoom) {
+                oFont = Math.max(MIN_OPTION_FONT, oFont - 1);
+              } else {
+                if (i % 2 === 0 && canReduceQ) {
+                  qFont = Math.max(MIN_QUESTION_FONT, qFont - 2);
+                } else if (canReduceO) {
+                  oFont = Math.max(MIN_OPTION_FONT, oFont - 1);
+                } else if (canReduceQ) {
+                  qFont = Math.max(MIN_QUESTION_FONT, qFont - 2);
+                }
+              }
             }
-            if(!baseLayout) throw new Error('Content too long');
+
+            // Final attempt at minimum sizes
+            if (!baseLayout) {
+              qFont = MIN_QUESTION_FONT;
+              oFont = MIN_OPTION_FONT;
+              
+              const qLines=wrap(displayText, CARD_W-64, qFont);
+              const qLH=qFont*qLineHeightMultiplier;
+              const qH=qLines.length*qLH+24;
+              
+              const oData=opts.map(o=>{ 
+                const ls=wrap(o.t, CARD_W-140, oFont); 
+                const lh=oFont*oLineHeightMultiplier; 
+                const h=Math.max(optionBoxHeight, ls.length*lh+28); 
+                return {...o,ls,lh,h}; 
+              });
+              
+              const titleH=showTitleText?70:20;
+              const signBlock=signH?signH+24:0;
+              const optsH=oData.reduce((s,o)=>s+o.h,0)+(oData.length-1)*optionSpacing;
+              const totalH=titleH+qH+signBlock+optsH+48;
+              
+              if(totalH<=MAX_AVAILABLE_H){ 
+                baseLayout={qFont,oFont,qLines,qLH,oData,titleH,qH,signBlock,optsH,totalH}; 
+              }
+            }
+
+            // Skip instead of crash
+            if (!baseLayout) {
+              console.warn(`⚠️ Question ${qId}: Content too long even at minimum readable sizes`);
+              console.warn(`   Q:${MIN_QUESTION_FONT}px, O:${MIN_OPTION_FONT}px - Consider shortening text`);
+              return;
+            }
 
             const cardTop = SAFE.y + TOP_OFFSET;
             const cardLeft = Math.round(SAFE.x + (SAFE.w - CARD_W)/2);
@@ -218,13 +298,17 @@ jobs:
               const maxExtraH = Math.max(0, EXTRA_BOTTOM - lastOptionBottom - EXTRA_MIN_GAP);
               
               if(maxExtraH>48){
-                let eFont=Math.round(CONTENT_W*extraFontMultiplier), eData=null;
+                let eFont = Math.min(MAX_EXTRA_FONT, Math.round(CONTENT_W*extraFontMultiplier));
+                let eData=null;
                 for(let i=0;i<15;i++){
                   const lines=wrap(extraText, CONTENT_W-48, eFont);
                   const lh=eFont*extraLineHeightMultiplier;
                   const h=Math.max(56, lines.length*lh+24);
-                  if(h<=maxExtraH || eFont<=18){ eData={lines,lh,h,font:eFont}; break; }
-                  eFont-=1;
+                  if(h<=maxExtraH || eFont<=MIN_EXTRA_FONT){ 
+                    eData={lines,lh,h,font:eFont}; 
+                    break; 
+                  }
+                  eFont = Math.max(MIN_EXTRA_FONT, eFont - 1);
                 }
                 if(eData){
                   const eH = eData.h;
