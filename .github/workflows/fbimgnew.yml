@@ -191,9 +191,9 @@ jobs:
             // Safe area inside the overlay (the "whiteboard")
             const SAFE = {
               x: Math.round(W * 0.13),
-              y: Math.round(H * 0.15),
+              y: Math.round(H * 0.14),
               w: Math.round(W * 0.720),
-              h: Math.round(H * 0.713),
+              h: Math.round(H * 0.69),
             };
 
             const PAD = 24;
