@@ -125,7 +125,7 @@ jobs:
             const base = sharp(OVERLAY_PATH);
             const { width: W, height: H } = await base.metadata();
 
-            const SAFE = { x: Math.round(W*0.014), y: Math.round(H*0.13), w: Math.round(W*0.96), h: Math.round(H*0.7) };
+            const SAFE = { x: Math.round(W*0.014), y: Math.round(H*0.13), w: Math.round(W*0.96), h: Math.round(H*0.68) };
             const PAD = 24;
             const CARD_W = SAFE.w - PAD*2;
             const MAX_AVAILABLE_H = SAFE.h - BOTTOM_MARGIN;
