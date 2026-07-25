@@ -97,6 +97,14 @@ jobs:
             const TOP_OFFSET = 60;
             const BOTTOM_MARGIN = 40;
 
+            // === FONT SIZE LIMITS (Readability Hard Bounds) ===
+            const MIN_QUESTION_FONT = 24;    // Never go below this
+            const MAX_QUESTION_FONT = 60;    // Never go above this
+            const MIN_OPTION_FONT = 20;      // Never go below this
+            const MAX_OPTION_FONT = 52;      // Never go above this
+            const MIN_EXTRA_FONT = 18;       // Never go below this
+            const MAX_EXTRA_FONT = 48;       // Never go above this
+
             // Extra (yellow) box positioning relative to overlay dimensions
             const CONTENT_LEFT_RATIO = 0.155;
             const CONTENT_RIGHT_RATIO = 0.835;
@@ -180,7 +188,7 @@ jobs:
             const base = sharp(OVERLAY_PATH);
             const { width: W, height: H } = await base.metadata();
 
-            // Safe area inside the overlay (the “whiteboard”)
+            // Safe area inside the overlay (the "whiteboard")
             const SAFE = {
               x: Math.round(W * 0.13),
               y: Math.round(H * 0.15),
@@ -248,9 +256,9 @@ jobs:
               throw new Error('At least one answer option is required.');
             }
 
-            // ─────────── LAYOUT: FIND FONT SIZES ──────────────
-            let qFont = Math.round(CARD_W * qFontMultiplier);
-            let oFont = Math.round(CARD_W * oFontMultiplier);
+            // ─────────── LAYOUT: FIND FONT SIZES WITH EQUAL PRIORITY ──────────────
+            let qFont = Math.min(MAX_QUESTION_FONT, Math.round(CARD_W * qFontMultiplier));
+            let oFont = Math.min(MAX_OPTION_FONT, Math.round(CARD_W * oFontMultiplier));
             let baseLayout = null;
 
             const displayText = prependQuestionNumber ? `Q${qId}: ${qText}` : qText;
@@ -291,18 +299,75 @@ jobs:
                 break;
               }
 
-              // Gradually reduce font sizes
-              if (qLines.length > 3 && qFont > 28) {
-                qFont -= 2;
-              } else if (oFont > 22) {
-                oFont -= 1;
+              // --- EQUAL PRIORITY REDUCTION ---
+              const canReduceQ = qFont > MIN_QUESTION_FONT;
+              const canReduceO = oFont > MIN_OPTION_FONT;
+              
+              if (!canReduceQ && !canReduceO) break;
+              
+              const qRoom = qFont - MIN_QUESTION_FONT;
+              const oRoom = oFont - MIN_OPTION_FONT;
+              
+              if (qRoom > oRoom) {
+                qFont = Math.max(MIN_QUESTION_FONT, qFont - 2);
+              } else if (oRoom > qRoom) {
+                oFont = Math.max(MIN_OPTION_FONT, oFont - 1);
               } else {
-                qFont -= 1;
+                if (attempt % 2 === 0 && canReduceQ) {
+                  qFont = Math.max(MIN_QUESTION_FONT, qFont - 2);
+                } else if (canReduceO) {
+                  oFont = Math.max(MIN_OPTION_FONT, oFont - 1);
+                } else if (canReduceQ) {
+                  qFont = Math.max(MIN_QUESTION_FONT, qFont - 2);
+                }
               }
             }
 
+            // Final attempt at minimum sizes
             if (!baseLayout) {
-              throw new Error('Content too long to fit on the card. Please shorten the question or options.');
+              qFont = MIN_QUESTION_FONT;
+              oFont = MIN_OPTION_FONT;
+              
+              const qLines = wrapText(displayText, CARD_W - 64, qFont);
+              const qLineHeight = qFont * qLineHeightMultiplier;
+
+              const optionData = options.map((opt) => {
+                const lines = wrapText(opt.text, CARD_W - 140, oFont);
+                const lineHeight = oFont * oLineHeightMultiplier;
+                const neededH = Math.max(optionBoxHeight, lines.length * lineHeight + 28);
+                return { ...opt, lines, lineHeight, boxH: neededH };
+              });
+
+              const titleH = showTitleText ? 70 : 20;
+              const qH = qLines.length * qLineHeight + 24;
+              const signBlock = signH ? signH + 24 : 0;
+              const optionsTotalH =
+                optionData.reduce((sum, o) => sum + o.boxH, 0) +
+                (optionData.length - 1) * optionSpacing;
+
+              const totalCardH = titleH + qH + signBlock + optionsTotalH + 48;
+
+              if (totalCardH <= MAX_AVAILABLE_H) {
+                baseLayout = {
+                  qFont,
+                  oFont,
+                  qLines,
+                  qLineHeight,
+                  optionData,
+                  titleH,
+                  qH,
+                  signBlock,
+                  optionsTotalH,
+                  totalCardH,
+                };
+              }
+            }
+
+            // Skip instead of crash
+            if (!baseLayout) {
+              console.warn(`⚠️ Question ${qId}: Content too long even at minimum readable sizes`);
+              console.warn(`   Q:${MIN_QUESTION_FONT}px, O:${MIN_OPTION_FONT}px - Consider shortening text`);
+              return;
             }
 
             // Card positioning inside the safe area
@@ -383,7 +448,7 @@ jobs:
               const maxExtraH = Math.max(0, EXTRA_BOTTOM - lastOptionBottom - EXTRA_MIN_GAP);
 
               if (maxExtraH > 48) {
-                let eFont = Math.round(CONTENT_W * extraFontMultiplier);
+                let eFont = Math.min(MAX_EXTRA_FONT, Math.round(CONTENT_W * extraFontMultiplier));
                 let extraData = null;
 
                 for (let attempt = 0; attempt < 15; attempt++) {
@@ -391,11 +456,11 @@ jobs:
                   const lineHeight = eFont * extraLineHeightMultiplier;
                   const boxH = Math.max(56, lines.length * lineHeight + 24);
 
-                  if (boxH <= maxExtraH || eFont <= 18) {
+                  if (boxH <= maxExtraH || eFont <= MIN_EXTRA_FONT) {
                     extraData = { lines, lineHeight, boxH, font: eFont };
                     break;
                   }
-                  eFont -= 1;
+                  eFont = Math.max(MIN_EXTRA_FONT, eFont - 1);
                 }
 
                 if (extraData) {
