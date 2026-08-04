@@ -26,7 +26,7 @@ on:
         type: string
         default: ''
       e:
-        description: 'Extra box text (yellow). Separate different texts with a blank line (double newline). One is randomly picked if it fits.'
+        description: 'Extra box text (yellow). Separate different texts with a blank line. One is picked randomly if it fits.'
         required: false
         type: string
         default: ''
@@ -317,6 +317,7 @@ jobs:
               composites.push({ input: signBuf, left: signLeft, top: signTop });
             }
 
+            // ──────────── EXTRA BOX (always tries to fit) ────────────
             if (hasExtra) {
               const CONTENT_LEFT = Math.round(W * CONTENT_LEFT_RATIO);
               const CONTENT_RIGHT = Math.round(W * CONTENT_RIGHT_RATIO);
@@ -324,68 +325,68 @@ jobs:
               const EXTRA_BOTTOM = Math.round(H * EXTRA_BOTTOM_RATIO);
               const maxExtraH = Math.max(0, EXTRA_BOTTOM - lastOptionBottom - EXTRA_MIN_GAP);
 
-              if (maxExtraH > 48) {
-                // ---------- Parse alternatives by double newline (blank line) ----------
-                const rawParts = extraText.split(/\n\s*\n/).map(p => p.trim()).filter(p => p.length > 0);
-                const useAlternatives = rawParts.length >= 2;
+              // Split on blank lines, get unique paragraphs
+              const rawParts = extraText.split(/\n\s*\n/).map(p => p.trim()).filter(p => p.length > 0);
+              const useAlternatives = rawParts.length >= 2;
 
-                const candidates = [];
-                if (useAlternatives) {
-                  rawParts.forEach((text, idx) => {
-                    candidates.push({ key: String(idx + 1), value: text });
-                  });
-                  // Fisher-Yates shuffle
-                  for (let i = candidates.length - 1; i > 0; i--) {
-                    const j = Math.floor(Math.random() * (i + 1));
-                    [candidates[i], candidates[j]] = [candidates[j], candidates[i]];
-                  }
-                  console.log(`EXTRA BOX: Detected ${candidates.length} paragraphs (blank-line separated)`);
-                  console.log('EXTRA BOX: Random order:');
-                  candidates.forEach((c, idx) => console.log(`  [${idx + 1}] ${c.value.substring(0, 60)}${c.value.length > 60 ? '...' : ''}`));
-                } else {
-                  candidates.push({ key: '1', value: extraText.trim() });
-                  console.log('EXTRA BOX: Single candidate (only one paragraph)');
+              const candidates = [];
+              if (useAlternatives) {
+                rawParts.forEach((text, idx) => {
+                  candidates.push({ key: String(idx + 1), value: text });
+                });
+                // Shuffle randomly
+                for (let i = candidates.length - 1; i > 0; i--) {
+                  const j = Math.floor(Math.random() * (i + 1));
+                  [candidates[i], candidates[j]] = [candidates[j], candidates[i]];
                 }
+                console.log(`EXTRA BOX: Detected ${candidates.length} paragraphs`);
+                console.log('EXTRA BOX: Random order:');
+                candidates.forEach((c, idx) => console.log(`  [${idx + 1}] ${c.value.substring(0, 60)}${c.value.length > 60 ? '...' : ''}`));
+              } else {
+                candidates.push({ key: '1', value: extraText.trim() });
+                console.log('EXTRA BOX: Single candidate');
+              }
 
-                let fittedExtraData = null;
-                for (const candidate of candidates) {
-                  let eFont = Math.min(MAX_EXTRA_FONT, Math.round(CONTENT_W * extraFontMultiplier));
-                  let eData = null;
-                  for (let i = 0; i < 15; i++) {
-                    const lines = wrap(candidate.value, CONTENT_W - 48, eFont);
-                    const lh = eFont * extraLineHeightMultiplier;
-                    const h = Math.max(56, lines.length * lh + 24);
-                    if (h <= maxExtraH || eFont <= MIN_EXTRA_FONT) {
-                      eData = { lines, lh, h, font: eFont };
-                      break;
-                    }
-                    eFont = Math.max(MIN_EXTRA_FONT, eFont - 1);
-                  }
-                  if (eData) {
-                    fittedExtraData = { ...eData, text: candidate.value };
-                    console.log('EXTRA BOX: Chosen paragraph | font=' + eData.font + 'px | box=' + eData.h + 'px | maxExtraH=' + maxExtraH + 'px');
-                    console.log('EXTRA BOX: Final text -> ' + candidate.value);
+              let fittedExtraData = null;
+              for (const candidate of candidates) {
+                let eFont = Math.min(MAX_EXTRA_FONT, Math.round(CONTENT_W * extraFontMultiplier));
+                let eData = null;
+                for (let i = 0; i < 15; i++) {
+                  const lines = wrap(candidate.value, CONTENT_W - 48, eFont);
+                  const lh = eFont * extraLineHeightMultiplier;
+                  // Reduced minimum box height from 56 to 40
+                  const h = Math.max(40, lines.length * lh + 24);
+                  if (h <= maxExtraH || eFont <= MIN_EXTRA_FONT) {
+                    eData = { lines, lh, h, font: eFont };
                     break;
                   }
-                  console.log('EXTRA BOX: Skipped paragraph | value="' + candidate.value + '" | too long even at min font=' + MIN_EXTRA_FONT + 'px');
+                  eFont = Math.max(MIN_EXTRA_FONT, eFont - 1);
                 }
+                if (eData) {
+                  fittedExtraData = { ...eData, text: candidate.value };
+                  console.log(`EXTRA BOX: Chosen paragraph | font=${eData.font}px | box=${eData.h}px | maxExtraH=${maxExtraH}px`);
+                  console.log('EXTRA BOX: Final text -> ' + candidate.value);
+                  break;
+                }
+                console.log(`EXTRA BOX: Skipped paragraph | value="${candidate.value}" | too long even at min font=${MIN_EXTRA_FONT}px`);
+              }
 
-                if (fittedExtraData) {
-                  const eH = fittedExtraData.h;
-                  const eTop = Math.round(EXTRA_BOTTOM - eH);
-                  const E = [];
-                  E.push(`<svg width="${CONTENT_W}" height="${eH}" xmlns="http://www.w3.org/2000/svg">`);
-                  E.push(`<rect x="0" y="0" width="${CONTENT_W}" height="${eH}" fill="${extraBoxFill}" stroke="${extraBoxStroke}" stroke-width="${extraBoxStrokeWidth}"/>`);
-                  fittedExtraData.lines.forEach((ln, li) => E.push(`<text x="24" y="${(eH - fittedExtraData.lines.length * fittedExtraData.lh) / 2 + fittedExtraData.lh * 0.8 + li * fittedExtraData.lh}" font-family="Arial,Helvetica,sans-serif" font-size="${fittedExtraData.font}" font-weight="700" fill="#000000">${escapeXml(ln)}</text>`));
-                  E.push(`</svg>`);
-                  const eBuf = await sharp(Buffer.from(E.join('\n'))).png().toBuffer();
-                  composites.push({ input: eBuf, left: CONTENT_LEFT, top: eTop });
-                  console.log('EXTRA BOX: Rendered');
-                } else {
-                  console.warn('EXTRA BOX: ⚠️ Question ' + qId + ': All paragraphs too long at minimum size - SKIPPED');
-                }
+              if (fittedExtraData) {
+                const eH = fittedExtraData.h;
+                const eTop = Math.round(EXTRA_BOTTOM - eH);
+                const E = [];
+                E.push(`<svg width="${CONTENT_W}" height="${eH}" xmlns="http://www.w3.org/2000/svg">`);
+                E.push(`<rect x="0" y="0" width="${CONTENT_W}" height="${eH}" fill="${extraBoxFill}" stroke="${extraBoxStroke}" stroke-width="${extraBoxStrokeWidth}"/>`);
+                fittedExtraData.lines.forEach((ln, li) => E.push(`<text x="24" y="${(eH - fittedExtraData.lines.length * fittedExtraData.lh) / 2 + fittedExtraData.lh * 0.8 + li * fittedExtraData.lh}" font-family="Arial,Helvetica,sans-serif" font-size="${fittedExtraData.font}" font-weight="700" fill="#000000">${escapeXml(ln)}</text>`));
+                E.push(`</svg>`);
+                const eBuf = await sharp(Buffer.from(E.join('\n'))).png().toBuffer();
+                composites.push({ input: eBuf, left: CONTENT_LEFT, top: eTop });
+                console.log('EXTRA BOX: Rendered');
+              } else {
+                console.warn(`EXTRA BOX: ⚠️ No alternative fits in ${maxExtraH}px — SKIPPED`);
               }
             }
+            // ─────────────────────────────────────────────────────────
 
             // ---------- Generate temporary image ----------
             const safeId = qId.replace(/[^a-z0-9]/gi, '_');
