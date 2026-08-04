@@ -318,10 +318,16 @@ jobs:
               
               if(maxExtraH>48){
                 // ---------- Parse numbered alternatives ----------
-                // Supports both newline-separated and single-line formats:
-                //   "1. short\n2. medium\n3. long"  or  "1. short 2. medium 3. long"
+                // Normalize literal "\n" / "
+\n" into real whitespace first,
+                // then split on numbered boundaries. Supports both:
+                //   "1. short\n2. medium\n3. long"
+                //   "1. short 2. medium 3. long"
+                //   "1. short\\n2. medium\\n3. long"
+                const normalized = extraText.replace(/\\n|
+\n?/g, ' ').replace(/\s+/g, ' ').trim();
                 const alternativeMap = new Map();
-                const allMatches = [...extraText.matchAll(/(\d+)\.\s*(.+?)(?=\s*\d+\.|$)/g)];
+                const allMatches = [...normalized.matchAll(/(\d+)\.\s*(.+?)(?=\s*\d+\.|$)/g)];
                 if (allMatches.length >= 2) {
                   allMatches.forEach(m => alternativeMap.set(m[1], m[2].trim()));
                 }
