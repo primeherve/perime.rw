@@ -207,11 +207,11 @@ jobs:
 
             let displayText = prependQuestionNumber ? `Q${qId}: ${qText}` : qText;
 
+            // ---------- 1. Fit main content (original behaviour) ----------
             let qFont = Math.min(MAX_QUESTION_FONT, Math.round(CARD_W * qFontMultiplier));
             let oFont = Math.min(MAX_OPTION_FONT, Math.round(CARD_W * oFontMultiplier));
             let baseLayout = null;
 
-            // ---------- 1. Fit main content (original behaviour) ----------
             for (let i = 0; i < 35; i++) {
               const qLines = wrap(displayText, CARD_W - 64, qFont);
               const qLH = qFont * qLineHeightMultiplier;
@@ -278,27 +278,29 @@ jobs:
               return;
             }
 
-            // Save original layout for resetting per candidate
-            const originalBaseLayout = { ...baseLayout, oData: baseLayout.oData.map(o => ({...o})) };
+            // Store the "comfortable" (starting) font sizes for proportional scaling
+            const comfortableQ = baseLayout.qFont;
+            const comfortableO = baseLayout.oFont;
+            const comfortableE = Math.min(MAX_EXTRA_FONT, Math.round(CONTENT_LEFT_RATIO ? (W * 0.9505 - W * 0.04505) * extraFontMultiplier : 48)); // will be recalc later
 
-            // ====================== 2. Extra box fitting (interleaved reduction) ==================
+            // ====================== 2. Extra box fitting (proportional scaling) ==================
             const CONTENT_LEFT = Math.round(W * CONTENT_LEFT_RATIO);
             const CONTENT_RIGHT = Math.round(W * CONTENT_RIGHT_RATIO);
             const CONTENT_W = CONTENT_RIGHT - CONTENT_LEFT;
             const EXTRA_BOTTOM = Math.round(H * EXTRA_BOTTOM_RATIO);
 
-            let finalBaseLayout = baseLayout;
+            let finalBaseLayout = baseLayout;   // holds final chosen layout
             let extraBoxFitted = false;
             let fittedExtraData = null;
 
             if (hasExtra) {
-              // Split into candidates on blank lines
+              // Parse alternatives (separated by blank lines)
               const rawParts = extraText.split(/\n\s*\n/).map(p => p.trim()).filter(p => p.length > 0);
               if (rawParts.length === 0) {
                 console.warn('EXTRA BOX: Input is empty after splitting – skipping.');
               } else {
                 const candidates = rawParts.map((text, idx) => ({ key: String(idx + 1), value: text }));
-                // Shuffle
+                // Shuffle randomly
                 for (let i = candidates.length - 1; i > 0; i--) {
                   const j = Math.floor(Math.random() * (i + 1));
                   [candidates[i], candidates[j]] = [candidates[j], candidates[i]];
@@ -307,7 +309,7 @@ jobs:
                 candidates.forEach((c, idx) => console.log(`  [${idx + 1}] ${c.value.substring(0, 60)}${c.value.length > 60 ? '...' : ''}`));
 
                 // Helper to compute main layout with given fonts
-                const computeLayout = (qf, of) => {
+                const computeMainLayout = (qf, of) => {
                   const qLines = wrap(displayText, CARD_W - 64, qf);
                   const qLH = qf * qLineHeightMultiplier;
                   const qH = qLines.length * qLH + 24;
@@ -326,28 +328,33 @@ jobs:
                   return { qLines, qLH, oData, totalH, lastBottom, titleH, qH, signBlock, optsH };
                 };
 
+                // We'll compute the comfortable extra font based on the width (same as always)
+                const comfortableExtra = Math.min(MAX_EXTRA_FONT, Math.round(CONTENT_W * extraFontMultiplier));
+
+                // Try each candidate with proportional scaling
                 candidateLoop:
                 for (const candidate of candidates) {
                   console.log(`\n--- Trying: "${candidate.value}" ---`);
-                  // Start from original fonts
-                  let qf = originalBaseLayout.qFont;
-                  let of = originalBaseLayout.oFont;
-                  let ef = Math.min(MAX_EXTRA_FONT, Math.round(CONTENT_W * extraFontMultiplier));
 
-                  // We'll interleave reductions in order: ef, qf, of, ef, qf, of, ...
-                  // We use a counter to cycle through which font to reduce next
-                  let step = 0;
-                  const MAX_STEPS = 100; // safety
-                  while (step < MAX_STEPS) {
-                    const layout = computeLayout(qf, of);
+                  // Start with scaling factor 1.0 and go down to 0.0 (min fonts)
+                  for (let factor = 1.0; factor >= 0.0; factor -= 0.05) {
+                    // Avoid floating point issues at the end
+                    const scale = Math.max(0.0, factor);
+
+                    // Proportional fonts: linear interpolation between comfortable (max) and min
+                    const qf = Math.round(comfortableQ + (MIN_QUESTION_FONT - comfortableQ) * (1.0 - scale));
+                    const of = Math.round(comfortableO + (MIN_OPTION_FONT - comfortableO) * (1.0 - scale));
+                    const ef = Math.round(comfortableExtra + (MIN_EXTRA_FONT - comfortableExtra) * (1.0 - scale));
+
+                    const layout = computeMainLayout(qf, of);
                     const maxExtraH = Math.max(0, EXTRA_BOTTOM - layout.lastBottom - EXTRA_MIN_GAP);
 
-                    // Try to fit candidate with current ef
+                    // Wrap the candidate with current extra font
                     const lines = wrap(candidate.value, CONTENT_W - 48, ef);
                     const lh = ef * extraLineHeightMultiplier;
                     const boxH = Math.max(40, lines.length * lh + 24);
 
-                    if (boxH <= maxExtraH) {
+                    if (layout.totalH <= MAX_AVAILABLE_H && boxH <= maxExtraH) {
                       // Fits!
                       fittedExtraData = { lines, lh, h: boxH, font: ef, text: candidate.value };
                       finalBaseLayout = {
@@ -363,62 +370,17 @@ jobs:
                         totalH: layout.totalH
                       };
                       extraBoxFitted = true;
-                      console.log(`   SUCCESS: ef=${ef}px, Q=${qf}px, O=${of}px, boxH=${boxH}px, maxExtraH=${maxExtraH}px`);
+                      console.log(`   SUCCESS at scale=${scale.toFixed(2)}: Q=${qf}px, O=${of}px, E=${ef}px, boxH=${boxH}px, maxExtraH=${maxExtraH}px`);
                       break candidateLoop;
                     }
+                  }
 
-                    // Determine which font to reduce this step (if possible)
-                    const reduceOrder = step % 3; // 0:ef, 1:qf, 2:of
-                    let reduced = false;
-                    if (reduceOrder === 0 && ef > MIN_EXTRA_FONT) {
-                      ef = Math.max(MIN_EXTRA_FONT, ef - 1);
-                      reduced = true;
-                    } else if (reduceOrder === 1 && qf > MIN_QUESTION_FONT) {
-                      qf = Math.max(MIN_QUESTION_FONT, qf - 2);
-                      reduced = true;
-                    } else if (reduceOrder === 2 && of > MIN_OPTION_FONT) {
-                      of = Math.max(MIN_OPTION_FONT, of - 1);
-                      reduced = true;
-                    } else {
-                      // If the chosen font can't be reduced, try the next in sequence without incrementing step unnecessarily
-                      // We'll just cycle through all three until one can be reduced
-                      let alternateReduced = false;
-                      for (let offset = 1; offset <= 2; offset++) {
-                        const nextOrder = (reduceOrder + offset) % 3;
-                        if (nextOrder === 0 && ef > MIN_EXTRA_FONT) {
-                          ef = Math.max(MIN_EXTRA_FONT, ef - 1);
-                          alternateReduced = true;
-                          break;
-                        } else if (nextOrder === 1 && qf > MIN_QUESTION_FONT) {
-                          qf = Math.max(MIN_QUESTION_FONT, qf - 2);
-                          alternateReduced = true;
-                          break;
-                        } else if (nextOrder === 2 && of > MIN_OPTION_FONT) {
-                          of = Math.max(MIN_OPTION_FONT, of - 1);
-                          alternateReduced = true;
-                          break;
-                        }
-                      }
-                      if (!alternateReduced) {
-                        // Nothing can be reduced – all fonts at min
-                        console.log(`   All fonts at minimum, cannot fit.`);
-                        break; // out of while loop, go to next candidate
-                      }
-                      reduced = true;
-                    }
-
-                    if (reduced) {
-                      console.log(`   Step ${step}: Reduced ${reduceOrder===0?'ef':reduceOrder===1?'qf':'of'} -> ef=${ef}, Q=${qf}, O=${of}`);
-                    }
-                    step++;
-                  } // end while
-
-                  if (extraBoxFitted) break candidateLoop;
-                } // end for candidates
+                  console.log(`   Candidate does not fit even at scale 0.0 (all fonts at minimum).`);
+                }
 
                 if (!extraBoxFitted) {
                   console.warn('\nEXTRA BOX: No candidate fits even with all fonts at minimum – skipped.');
-                  finalBaseLayout = originalBaseLayout; // revert to original
+                  finalBaseLayout = baseLayout; // keep original
                 }
               }
             }
