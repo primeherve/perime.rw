@@ -26,7 +26,7 @@ on:
         type: string
         default: ''
       e:
-        description: 'Extra box text (yellow). Supports numbered alternatives: "1. short\n2. medium\n3. long". YAML randomly picks one that fits; if none fit, extra box is skipped.'
+        description: 'Extra box text (yellow). Separate different texts with a blank line (double newline). One is randomly picked if it fits.'
         required: false
         type: string
         default: ''
@@ -83,34 +83,34 @@ jobs:
             const SIGNS_DIR = 'perimelight/signs';
             const OVERLAY_PATH = path.join('perimelight', 'overlay', 'video.jpg');
             const SONGS_DIR = 'perimelight/song';
-            
+
             const qFontMultiplier = 0.055;
             const oFontMultiplier = 0.052;
             const extraFontMultiplier = 0.05;
-            
+
             const qLineHeightMultiplier = 1.2;
             const oLineHeightMultiplier = 1.15;
             const extraLineHeightMultiplier = 1.25;
-            
+
             const showTitleText = false;
             const prependQuestionNumber = true;
-            
+
             const optionBoxHeight = 72;
             const optionSpacing = 16;
             const circleRadius = 22;
             const circleFontSize = 20;
-            
+
             const TOP_OFFSET = 60;
             const BOTTOM_MARGIN = 40;
-            
+
             // === FONT SIZE LIMITS (Readability Hard Bounds) ===
-            const MIN_QUESTION_FONT = 24;    // Never go below this
-            const MAX_QUESTION_FONT = 60;    // Never go above this
-            const MIN_OPTION_FONT = 20;      // Never go below this
-            const MAX_OPTION_FONT = 52;      // Never go above this
-            const MIN_EXTRA_FONT = 18;       // Never go below this
-            const MAX_EXTRA_FONT = 48;       // Never go above this
-            
+            const MIN_QUESTION_FONT = 24;
+            const MAX_QUESTION_FONT = 60;
+            const MIN_OPTION_FONT = 20;
+            const MAX_OPTION_FONT = 52;
+            const MIN_EXTRA_FONT = 18;
+            const MAX_EXTRA_FONT = 48;
+
             const CONTENT_LEFT_RATIO = 0.04505;
             const CONTENT_RIGHT_RATIO = 0.9505;
             const EXTRA_BOTTOM_RATIO = 0.821;
@@ -125,16 +125,16 @@ jobs:
             const base = sharp(OVERLAY_PATH);
             const { width: W, height: H } = await base.metadata();
 
-            const SAFE = { x: Math.round(W*0.014), y: Math.round(H*0.12), w: Math.round(W*0.96), h: Math.round(H*0.69) };
+            const SAFE = { x: Math.round(W * 0.014), y: Math.round(H * 0.12), w: Math.round(W * 0.96), h: Math.round(H * 0.69) };
             const PAD = 24;
-            const CARD_W = SAFE.w - PAD*2;
+            const CARD_W = SAFE.w - PAD * 2;
             const MAX_AVAILABLE_H = SAFE.h - BOTTOM_MARGIN;
 
             const qId = (process.env.INPUT_X || '1').trim();
-            let qText = (process.env.INPUT_Q || '').replace(/\s+/g,' ').trim();
-            const rawOpts = { a:process.env.INPUT_A||'', b:process.env.INPUT_B||'', c:process.env.INPUT_C||'', d:process.env.INPUT_D||'' };
+            let qText = (process.env.INPUT_Q || '').replace(/\s+/g, ' ').trim();
+            const rawOpts = { a: process.env.INPUT_A || '', b: process.env.INPUT_B || '', c: process.env.INPUT_C || '', d: process.env.INPUT_D || '' };
             const extraText = (process.env.INPUT_E || '').trim();
-            const hasExtra = extraText.length>0;
+            const hasExtra = extraText.length > 0;
             const brandText = (process.env.INPUT_BRAND || '').trim();
 
             console.log('='.repeat(60));
@@ -149,31 +149,29 @@ jobs:
             console.log('  brand       :', brandText || '(default: perime.rw250)');
             console.log('='.repeat(60));
 
-            // ---------- Extra box debug ----------
             if (hasExtra) {
               const preview = extraText.length > 120 ? extraText.slice(0, 120) + '...' : extraText;
               console.log('EXTRA RAW INPUT:', preview);
             }
 
             const hasImg = /\[image\]/i.test(qText);
-            if (hasImg) qText = qText.replace(/\[image\]/i,'').trim();
-            let signBuf=null, signH=0, signW=0;
+            if (hasImg) qText = qText.replace(/\[image\]/i, '').trim();
+            let signBuf = null, signH = 0, signW = 0;
             if (hasImg) {
-              for (const ext of ['.jpg','.jpeg','.png','.webp']) {
+              for (const ext of ['.jpg', '.jpeg', '.png', '.webp']) {
                 const p = path.join(SIGNS_DIR, `${qId}${ext}`);
                 if (!fs.existsSync(p)) continue;
-                signBuf = await sharp(p).resize(Math.round(CARD_W*0.85), Math.round(SAFE.h*0.3), {fit:'inside',withoutEnlargement:true}).png().toBuffer();
-                const m = await sharp(signBuf).metadata(); signW=m.width; signH=m.height; break;
+                signBuf = await sharp(p).resize(Math.round(CARD_W * 0.85), Math.round(SAFE.h * 0.3), { fit: 'inside', withoutEnlargement: true }).png().toBuffer();
+                const m = await sharp(signBuf).metadata(); signW = m.width; signH = m.height; break;
               }
             }
 
-            // ---------- FIXED: clean options (handles numbers and strings) ----------
             const clean = (t, k) => {
               t = String(t);
               const p = new RegExp(`^${String(k)}\\s*[\\.\\)\\-\\:\\s]+`, 'i');
               return p.test(t) ? t.replace(p, '').trim() : t.trim();
             };
-            const opts = ['a','b','c','d']
+            const opts = ['a', 'b', 'c', 'd']
               .filter(k => {
                 const v = rawOpts[k];
                 return v !== undefined && v !== null && String(v).trim() !== '';
@@ -188,50 +186,62 @@ jobs:
                   return cleaned;
                 })()
               }));
-            // ---------------------------------------------------------------------
 
-            const cw = ch=>/[iIl1|!.,;:'`"()\[\]{}\\\/]/.test(ch)?0.34:/[mwMW@%]/.test(ch)?0.72:/[A-Z]/.test(ch)?0.66:/[a-z]/.test(ch)?0.52:/[0-9]/.test(ch)?0.58:0.56;
-            const textW = (s,fs)=>[...String(s)].reduce((a,c)=>a+cw(c)*fs,0);
-            const wrap = (t,maxW,fs)=>{ const w=String(t).trim().split(/\s+/), L=[]; let c=''; for(const wd of w){ const tr=c?c+' '+wd:wd; if(textW(tr,fs)<=maxW){c=tr;continue} if(c)L.push(c); if(textW(wd,fs)>maxW){let p=''; for(const ch of wd){if(textW(p+ch,fs)<=maxW)p+=ch; else{L.push(p);p=ch}} c=p}else c=wd } if(c)L.push(c); return L };
+            const cw = ch => /[iIl1|!.,;:'`"()\[\]{}\\\/]/.test(ch) ? 0.34 : /[mwMW@%]/.test(ch) ? 0.72 : /[A-Z]/.test(ch) ? 0.66 : /[a-z]/.test(ch) ? 0.52 : /[0-9]/.test(ch) ? 0.58 : 0.56;
+            const textW = (s, fs) => [...String(s)].reduce((a, c) => a + cw(c) * fs, 0);
+            const wrap = (t, maxW, fs) => {
+              const w = String(t).trim().split(/\s+/), L = [];
+              let c = '';
+              for (const wd of w) {
+                const tr = c ? c + ' ' + wd : wd;
+                if (textW(tr, fs) <= maxW) { c = tr; continue }
+                if (c) L.push(c);
+                if (textW(wd, fs) > maxW) {
+                  let p = '';
+                  for (const ch of wd) { if (textW(p + ch, fs) <= maxW) p += ch; else { L.push(p); p = ch } }
+                  c = p
+                } else c = wd
+              }
+              if (c) L.push(c);
+              return L;
+            };
 
             let displayText = prependQuestionNumber ? `Q${qId}: ${qText}` : qText;
 
-            // ---- 1. Fit Q + options with equal priority ----
             let qFont = Math.min(MAX_QUESTION_FONT, Math.round(CARD_W * qFontMultiplier));
             let oFont = Math.min(MAX_OPTION_FONT, Math.round(CARD_W * oFontMultiplier));
             let baseLayout = null;
 
-            for(let i=0;i<35;i++){
-              const qLines=wrap(displayText, CARD_W-64, qFont);
-              const qLH=qFont*qLineHeightMultiplier;
-              const qH=qLines.length*qLH+24;
-              
-              const oData=opts.map(o=>{ 
-                const ls=wrap(o.t, CARD_W-140, oFont); 
-                const lh=oFont*oLineHeightMultiplier; 
-                const h=Math.max(optionBoxHeight, ls.length*lh+28); 
-                return {...o,ls,lh,h}; 
+            for (let i = 0; i < 35; i++) {
+              const qLines = wrap(displayText, CARD_W - 64, qFont);
+              const qLH = qFont * qLineHeightMultiplier;
+              const qH = qLines.length * qLH + 24;
+
+              const oData = opts.map(o => {
+                const ls = wrap(o.t, CARD_W - 140, oFont);
+                const lh = oFont * oLineHeightMultiplier;
+                const h = Math.max(optionBoxHeight, ls.length * lh + 28);
+                return { ...o, ls, lh, h };
               });
-              
-              const titleH=showTitleText?70:20;
-              const signBlock=signH?signH+24:0;
-              const optsH=oData.reduce((s,o)=>s+o.h,0)+(oData.length-1)*optionSpacing;
-              const totalH=titleH+qH+signBlock+optsH+48;
-              
-              if(totalH<=MAX_AVAILABLE_H){ 
-                baseLayout={qFont,oFont,qLines,qLH,oData,titleH,qH,signBlock,optsH,totalH}; 
-                break; 
+
+              const titleH = showTitleText ? 70 : 20;
+              const signBlock = signH ? signH + 24 : 0;
+              const optsH = oData.reduce((s, o) => s + o.h, 0) + (oData.length - 1) * optionSpacing;
+              const totalH = titleH + qH + signBlock + optsH + 48;
+
+              if (totalH <= MAX_AVAILABLE_H) {
+                baseLayout = { qFont, oFont, qLines, qLH, oData, titleH, qH, signBlock, optsH, totalH };
+                break;
               }
 
-              // --- EQUAL PRIORITY REDUCTION ---
               const canReduceQ = qFont > MIN_QUESTION_FONT;
               const canReduceO = oFont > MIN_OPTION_FONT;
-              
+
               if (!canReduceQ && !canReduceO) break;
-              
+
               const qRoom = qFont - MIN_QUESTION_FONT;
               const oRoom = oFont - MIN_OPTION_FONT;
-              
+
               if (qRoom > oRoom) {
                 qFont = Math.max(MIN_QUESTION_FONT, qFont - 2);
               } else if (oRoom > qRoom) {
@@ -247,33 +257,31 @@ jobs:
               }
             }
 
-            // Final attempt at minimum sizes
             if (!baseLayout) {
               qFont = MIN_QUESTION_FONT;
               oFont = MIN_OPTION_FONT;
-              
-              const qLines=wrap(displayText, CARD_W-64, qFont);
-              const qLH=qFont*qLineHeightMultiplier;
-              const qH=qLines.length*qLH+24;
-              
-              const oData=opts.map(o=>{ 
-                const ls=wrap(o.t, CARD_W-140, oFont); 
-                const lh=oFont*oLineHeightMultiplier; 
-                const h=Math.max(optionBoxHeight, ls.length*lh+28); 
-                return {...o,ls,lh,h}; 
+
+              const qLines = wrap(displayText, CARD_W - 64, qFont);
+              const qLH = qFont * qLineHeightMultiplier;
+              const qH = qLines.length * qLH + 24;
+
+              const oData = opts.map(o => {
+                const ls = wrap(o.t, CARD_W - 140, oFont);
+                const lh = oFont * oLineHeightMultiplier;
+                const h = Math.max(optionBoxHeight, ls.length * lh + 28);
+                return { ...o, ls, lh, h };
               });
-              
-              const titleH=showTitleText?70:20;
-              const signBlock=signH?signH+24:0;
-              const optsH=oData.reduce((s,o)=>s+o.h,0)+(oData.length-1)*optionSpacing;
-              const totalH=titleH+qH+signBlock+optsH+48;
-              
-              if(totalH<=MAX_AVAILABLE_H){ 
-                baseLayout={qFont,oFont,qLines,qLH,oData,titleH,qH,signBlock,optsH,totalH}; 
+
+              const titleH = showTitleText ? 70 : 20;
+              const signBlock = signH ? signH + 24 : 0;
+              const optsH = oData.reduce((s, o) => s + o.h, 0) + (oData.length - 1) * optionSpacing;
+              const totalH = titleH + qH + signBlock + optsH + 48;
+
+              if (totalH <= MAX_AVAILABLE_H) {
+                baseLayout = { qFont, oFont, qLines, qLH, oData, titleH, qH, signBlock, optsH, totalH };
               }
             }
 
-            // Skip instead of crash
             if (!baseLayout) {
               console.warn(`⚠️ Question ${qId}: Content too long even at minimum readable sizes`);
               console.warn(`   Q:${MIN_QUESTION_FONT}px, O:${MIN_OPTION_FONT}px - Consider shortening text`);
@@ -281,74 +289,67 @@ jobs:
             }
 
             const cardTop = SAFE.y + TOP_OFFSET;
-            const cardLeft = Math.round(SAFE.x + (SAFE.w - CARD_W)/2);
+            const cardLeft = Math.round(SAFE.x + (SAFE.w - CARD_W) / 2);
             const CARD_H = baseLayout.totalH;
             const lastOptionBottom = cardTop + baseLayout.titleH + baseLayout.qH + baseLayout.signBlock + baseLayout.optsH;
 
-            const C=[];
+            const C = [];
             C.push(`<svg width="${CARD_W}" height="${CARD_H}" xmlns="http://www.w3.org/2000/svg">`);
             C.push(`<rect x="0" y="0" width="${CARD_W}" height="${CARD_H}" rx="26" fill="#FFFFFF00"/>`);
-            if(showTitleText) C.push(`<text x="32" y="48" font-family="Arial,Helvetica,sans-serif" font-size="26" font-weight="700" fill="#1565C0">Ikibazo cya ${escapeXml(qId)}</text>`);
-            let y=baseLayout.titleH+8;
-            baseLayout.qLines.forEach((ln,i)=>C.push(`<text x="32" y="${y+i*baseLayout.qLH}" font-family="Arial,Helvetica,sans-serif" font-size="${baseLayout.qFont}" font-weight="700" fill="#1E1E1E">${escapeXml(ln)}</text>`));
-            y+=baseLayout.qH+baseLayout.signBlock;
-            baseLayout.oData.forEach(o=>{
-              C.push(`<rect x="24" y="${y}" width="${CARD_W-48}" height="${o.h}" rx="16" fill="#FFFFFF" stroke="#E0E0E0" stroke-width="1.5"/>`);
-              C.push(`<circle cx="60" cy="${y+o.h/2}" r="${circleRadius}" fill="#E3F2FD"/>`);
-              C.push(`<text x="60" y="${y+o.h/2+7}" font-family="Arial Black,Arial,sans-serif" font-size="${circleFontSize}" font-weight="900" fill="#1565C0" text-anchor="middle">${o.k}</text>`);
-              o.ls.forEach((ln,li)=>C.push(`<text x="100" y="${y+(o.h-o.ls.length*o.lh)/2+o.lh*0.8+li*o.lh}" font-family="Arial,Helvetica,sans-serif" font-size="${baseLayout.oFont}" fill="#212121">${escapeXml(ln)}</text>`));
-              y+=o.h+optionSpacing;
+            if (showTitleText) C.push(`<text x="32" y="48" font-family="Arial,Helvetica,sans-serif" font-size="26" font-weight="700" fill="#1565C0">Ikibazo cya ${escapeXml(qId)}</text>`);
+            let y = baseLayout.titleH + 8;
+            baseLayout.qLines.forEach((ln, i) => C.push(`<text x="32" y="${y + i * baseLayout.qLH}" font-family="Arial,Helvetica,sans-serif" font-size="${baseLayout.qFont}" font-weight="700" fill="#1E1E1E">${escapeXml(ln)}</text>`));
+            y += baseLayout.qH + baseLayout.signBlock;
+            baseLayout.oData.forEach(o => {
+              C.push(`<rect x="24" y="${y}" width="${CARD_W - 48}" height="${o.h}" rx="16" fill="#FFFFFF" stroke="#E0E0E0" stroke-width="1.5"/>`);
+              C.push(`<circle cx="60" cy="${y + o.h / 2}" r="${circleRadius}" fill="#E3F2FD"/>`);
+              C.push(`<text x="60" y="${y + o.h / 2 + 7}" font-family="Arial Black,Arial,sans-serif" font-size="${circleFontSize}" font-weight="900" fill="#1565C0" text-anchor="middle">${o.k}</text>`);
+              o.ls.forEach((ln, li) => C.push(`<text x="100" y="${y + (o.h - o.ls.length * o.lh) / 2 + o.lh * 0.8 + li * o.lh}" font-family="Arial,Helvetica,sans-serif" font-size="${baseLayout.oFont}" fill="#212121">${escapeXml(ln)}</text>`));
+              y += o.h + optionSpacing;
             });
             C.push(`</svg>`);
             const cardBuf = await sharp(Buffer.from(C.join('\n'))).png().toBuffer();
 
-            const composites = [{input:cardBuf, left:cardLeft, top:cardTop}];
-            if(signBuf){
-              const signTop = Math.round(cardTop+baseLayout.titleH+baseLayout.qH+12);
-              const signLeft = Math.round(cardLeft+(CARD_W-signW)/2);
-              composites.push({input:signBuf, left:signLeft, top:signTop});
+            const composites = [{ input: cardBuf, left: cardLeft, top: cardTop }];
+            if (signBuf) {
+              const signTop = Math.round(cardTop + baseLayout.titleH + baseLayout.qH + 12);
+              const signLeft = Math.round(cardLeft + (CARD_W - signW) / 2);
+              composites.push({ input: signBuf, left: signLeft, top: signTop });
             }
 
-            if(hasExtra){
-              const CONTENT_LEFT = Math.round(W*CONTENT_LEFT_RATIO);
-              const CONTENT_RIGHT = Math.round(W*CONTENT_RIGHT_RATIO);
+            if (hasExtra) {
+              const CONTENT_LEFT = Math.round(W * CONTENT_LEFT_RATIO);
+              const CONTENT_RIGHT = Math.round(W * CONTENT_RIGHT_RATIO);
               const CONTENT_W = CONTENT_RIGHT - CONTENT_LEFT;
-              const EXTRA_BOTTOM = Math.round(H*EXTRA_BOTTOM_RATIO);
+              const EXTRA_BOTTOM = Math.round(H * EXTRA_BOTTOM_RATIO);
               const maxExtraH = Math.max(0, EXTRA_BOTTOM - lastOptionBottom - EXTRA_MIN_GAP);
-              
-              if(maxExtraH>48){
-                // ---------- Parse numbered alternatives ----------
-                // Parse text like "1. short 2. medium 3. long"
-                const alternativeMap = new Map();
-                const altRegex = /(\d+)\.\s*(.+?)(?=\s*\d+\.|$)/g;
-                let altMatch;
-                while ((altMatch = altRegex.exec(extraText)) !== null) {
-                    const num = altMatch[1].trim();
-                    const text = altMatch[2].trim();
-                    if (text.length > 0) alternativeMap.set(num, text);
-                }
-                const useAlternatives = alternativeMap.size >= 2;
-                console.log('EXTRA BOX: Detected', alternativeMap.size, 'numbered alternatives from INPUT_E');
+
+              if (maxExtraH > 48) {
+                // ---------- Parse alternatives by double newline (blank line) ----------
+                const rawParts = extraText.split(/\n\s*\n/).map(p => p.trim()).filter(p => p.length > 0);
+                const useAlternatives = rawParts.length >= 2;
 
                 const candidates = [];
                 if (useAlternatives) {
-                  for (const [key, value] of alternativeMap.entries()) {
-                    candidates.push({ key, value });
-                  }
+                  rawParts.forEach((text, idx) => {
+                    candidates.push({ key: String(idx + 1), value: text });
+                  });
                   // Fisher-Yates shuffle
                   for (let i = candidates.length - 1; i > 0; i--) {
                     const j = Math.floor(Math.random() * (i + 1));
                     [candidates[i], candidates[j]] = [candidates[j], candidates[i]];
                   }
-                  console.log('EXTRA BOX: Using numbered alternatives (' + candidates.length + '), random order:');
-                  candidates.forEach((c, idx) => console.log('  [' + (idx + 1) + '] ' + c.key + '. ' + c.value));
+                  console.log(`EXTRA BOX: Detected ${candidates.length} paragraphs (blank-line separated)`);
+                  console.log('EXTRA BOX: Random order:');
+                  candidates.forEach((c, idx) => console.log(`  [${idx + 1}] ${c.value.substring(0, 60)}${c.value.length > 60 ? '...' : ''}`));
                 } else {
-                  candidates.push({ key: '1', value: extraText });
-                  console.log('EXTRA BOX: Single candidate (no numbered alternatives detected)');
+                  candidates.push({ key: '1', value: extraText.trim() });
+                  console.log('EXTRA BOX: Single candidate (only one paragraph)');
                 }
+
                 let fittedExtraData = null;
                 for (const candidate of candidates) {
-                  let eFont = Math.min(MAX_EXTRA_FONT, Math.round(CONTENT_W*extraFontMultiplier));
+                  let eFont = Math.min(MAX_EXTRA_FONT, Math.round(CONTENT_W * extraFontMultiplier));
                   let eData = null;
                   for (let i = 0; i < 15; i++) {
                     const lines = wrap(candidate.value, CONTENT_W - 48, eFont);
@@ -362,11 +363,11 @@ jobs:
                   }
                   if (eData) {
                     fittedExtraData = { ...eData, text: candidate.value };
-                    console.log('EXTRA BOX: Chosen alternative ' + candidate.key + ' | font=' + eData.font + 'px | box=' + eData.h + 'px | maxExtraH=' + maxExtraH + 'px');
+                    console.log('EXTRA BOX: Chosen paragraph | font=' + eData.font + 'px | box=' + eData.h + 'px | maxExtraH=' + maxExtraH + 'px');
                     console.log('EXTRA BOX: Final text -> ' + candidate.value);
                     break;
                   }
-                  console.log('EXTRA BOX: Skipped alternative ' + candidate.key + ' | value="' + candidate.value + '" | too long even at min font=' + MIN_EXTRA_FONT + 'px');
+                  console.log('EXTRA BOX: Skipped paragraph | value="' + candidate.value + '" | too long even at min font=' + MIN_EXTRA_FONT + 'px');
                 }
 
                 if (fittedExtraData) {
@@ -381,18 +382,18 @@ jobs:
                   composites.push({ input: eBuf, left: CONTENT_LEFT, top: eTop });
                   console.log('EXTRA BOX: Rendered');
                 } else {
-                  console.warn('EXTRA BOX: ⚠️ Question ' + qId + ': All alternatives too long at minimum size - SKIPPED');
+                  console.warn('EXTRA BOX: ⚠️ Question ' + qId + ': All paragraphs too long at minimum size - SKIPPED');
                 }
               }
             }
 
             // ---------- Generate temporary image ----------
-            const safeId = qId.replace(/[^a-z0-9]/gi,'_');
+            const safeId = qId.replace(/[^a-z0-9]/gi, '_');
             const tmpImg = `/tmp/quiz_${safeId}.png`;
-            await base.composite(composites).png({compressionLevel:9}).toFile(tmpImg);
+            await base.composite(composites).png({ compressionLevel: 9 }).toFile(tmpImg);
             console.log('Temporary image created:', tmpImg);
 
-            // ---------- FIX: Ensure even dimensions for libx264 ----------
+            // Ensure even dimensions for libx264
             const metaAfter = await sharp(tmpImg).metadata();
             if (metaAfter.width % 2 !== 0 || metaAfter.height % 2 !== 0) {
               const evenW = metaAfter.width % 2 ? metaAfter.width + 1 : metaAfter.width;
@@ -435,11 +436,12 @@ jobs:
             fs.unlinkSync(tmpImg);
             console.log('Generated video:', videoFile);
 
-            // Write output filename to a file for later steps (optional)
             fs.writeFileSync('/tmp/video_path.txt', videoFile);
           })();
 
-          function escapeXml(s){return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#39;');}
+          function escapeXml(s) {
+            return String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/'/g, '&#39;');
+          }
           NODESCRIPT
 
       - name: Commit and push video
