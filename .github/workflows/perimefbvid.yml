@@ -312,10 +312,12 @@ jobs:
               
               if(maxExtraH>48){
                 // ---------- Parse numbered alternatives ----------
+                // Supports both newline-separated and single-line formats:
+                //   "1. short\n2. medium\n3. long"  or  "1. short 2. medium 3. long"
                 const alternativeMap = new Map();
-                const altMatches = [...extraText.matchAll(/^(\d+)\.\s*(.+)$/gm)];
-                if (altMatches.length >= 2) {
-                  altMatches.forEach(m => alternativeMap.set(m[1], m[2].trim()));
+                const allMatches = [...extraText.matchAll(/(\d+)\.\s*(.+?)(?=\s*\d+\.|$)/g)];
+                if (allMatches.length >= 2) {
+                  allMatches.forEach(m => alternativeMap.set(m[1], m[2].trim()));
                 }
                 const useAlternatives = alternativeMap.size >= 2;
 
