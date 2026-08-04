@@ -149,6 +149,12 @@ jobs:
             console.log('  brand       :', brandText || '(default: perime.rw250)');
             console.log('='.repeat(60));
 
+            // ---------- Extra box debug ----------
+            if (hasExtra) {
+              const preview = extraText.length > 120 ? extraText.slice(0, 120) + '...' : extraText;
+              console.log('EXTRA RAW INPUT:', preview);
+            }
+
             const hasImg = /\[image\]/i.test(qText);
             if (hasImg) qText = qText.replace(/\[image\]/i,'').trim();
             let signBuf=null, signH=0, signW=0;
@@ -320,6 +326,7 @@ jobs:
                   allMatches.forEach(m => alternativeMap.set(m[1], m[2].trim()));
                 }
                 const useAlternatives = alternativeMap.size >= 2;
+                console.log('EXTRA BOX: Detected', alternativeMap.size, 'numbered alternatives from INPUT_E');
 
                 const candidates = [];
                 if (useAlternatives) {
