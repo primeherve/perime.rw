@@ -135,6 +135,19 @@ jobs:
             const rawOpts = { a:process.env.INPUT_A||'', b:process.env.INPUT_B||'', c:process.env.INPUT_C||'', d:process.env.INPUT_D||'' };
             const extraText = (process.env.INPUT_E || '').trim();
             const hasExtra = extraText.length>0;
+            const brandText = (process.env.INPUT_BRAND || '').trim();
+
+            console.log('='.repeat(60));
+            console.log('INPUT LOADED:');
+            console.log('  x  (qId)   :', qId);
+            console.log('  q  (question):', qText);
+            console.log('  a  (opt A)  :', rawOpts.a);
+            console.log('  b  (opt B)  :', rawOpts.b);
+            console.log('  c  (opt C)  :', rawOpts.c || '(empty)');
+            console.log('  d  (opt D)  :', rawOpts.d || '(empty)');
+            console.log('  e  (extra)  :', hasExtra ? extraText : '(empty - no extra box)');
+            console.log('  brand       :', brandText || '(default: perime.rw250)');
+            console.log('='.repeat(60));
 
             const hasImg = /\[image\]/i.test(qText);
             if (hasImg) qText = qText.replace(/\[image\]/i,'').trim();
@@ -316,8 +329,11 @@ jobs:
                     const j = Math.floor(Math.random() * (i + 1));
                     [candidates[i], candidates[j]] = [candidates[j], candidates[i]];
                   }
+                  console.log('EXTRA BOX: Using numbered alternatives (' + candidates.length + '), random order:');
+                  candidates.forEach((c, idx) => console.log('  [' + (idx + 1) + '] ' + c.key + '. ' + c.value));
                 } else {
                   candidates.push({ key: '1', value: extraText });
+                  console.log('EXTRA BOX: Single candidate (no numbered alternatives detected)');
                 }
 
                 let fittedExtraData = null;
@@ -336,10 +352,11 @@ jobs:
                   }
                   if (eData) {
                     fittedExtraData = { ...eData, text: candidate.value };
-                    console.log('Fitted extra box alternative:', candidate.key);
+                    console.log('EXTRA BOX: Chosen alternative ' + candidate.key + ' | font=' + eData.font + 'px | box=' + eData.h + 'px | maxExtraH=' + maxExtraH + 'px');
+                    console.log('EXTRA BOX: Final text -> ' + candidate.value);
                     break;
                   }
-                  console.log('Skipped extra box alternative', candidate.key, 'does not fit');
+                  console.log('EXTRA BOX: Skipped alternative ' + candidate.key + ' | value="' + candidate.value + '" | too long even at min font=' + MIN_EXTRA_FONT + 'px');
                 }
 
                 if (fittedExtraData) {
@@ -352,8 +369,9 @@ jobs:
                   E.push(`</svg>`);
                   const eBuf = await sharp(Buffer.from(E.join('\n'))).png().toBuffer();
                   composites.push({ input: eBuf, left: CONTENT_LEFT, top: eTop });
+                  console.log('EXTRA BOX: Rendered');
                 } else {
-                  console.warn(`⚠️ Question ${qId}: All extra box alternatives too long at minimum size - skipping extra box`);
+                  console.warn('EXTRA BOX: ⚠️ Question ' + qId + ': All alternatives too long at minimum size - SKIPPED');
                 }
               }
             }
