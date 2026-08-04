@@ -207,11 +207,11 @@ jobs:
 
             let displayText = prependQuestionNumber ? `Q${qId}: ${qText}` : qText;
 
-            // ---------- 1. Fit main content (original behaviour) ----------
             let qFont = Math.min(MAX_QUESTION_FONT, Math.round(CARD_W * qFontMultiplier));
             let oFont = Math.min(MAX_OPTION_FONT, Math.round(CARD_W * oFontMultiplier));
             let baseLayout = null;
 
+            // ---------- 1. Fit main content (original behaviour) ----------
             for (let i = 0; i < 35; i++) {
               const qLines = wrap(displayText, CARD_W - 64, qFont);
               const qLH = qFont * qLineHeightMultiplier;
@@ -278,20 +278,19 @@ jobs:
               return;
             }
 
-            // Store the "comfortable" (starting) font sizes for proportional scaling
-            const comfortableQ = baseLayout.qFont;
-            const comfortableO = baseLayout.oFont;
-            const comfortableE = Math.min(MAX_EXTRA_FONT, Math.round(CONTENT_LEFT_RATIO ? (W * 0.9505 - W * 0.04505) * extraFontMultiplier : 48)); // will be recalc later
+            // Save the original base layout (for resetting when trying different extra paragraphs)
+            const originalBaseLayout = { ...baseLayout, oData: baseLayout.oData.map(o => ({...o})) };
 
-            // ====================== 2. Extra box fitting (proportional scaling) ==================
+            // ====================== 2. Extra box fitting ==========================
             const CONTENT_LEFT = Math.round(W * CONTENT_LEFT_RATIO);
             const CONTENT_RIGHT = Math.round(W * CONTENT_RIGHT_RATIO);
             const CONTENT_W = CONTENT_RIGHT - CONTENT_LEFT;
             const EXTRA_BOTTOM = Math.round(H * EXTRA_BOTTOM_RATIO);
 
-            let finalBaseLayout = baseLayout;   // holds final chosen layout
+            let finalBaseLayout = baseLayout;        // will be updated if extra box fits
             let extraBoxFitted = false;
             let fittedExtraData = null;
+            let finalLastOptionBottom = 0;
 
             if (hasExtra) {
               // Parse alternatives (separated by blank lines)
@@ -308,8 +307,8 @@ jobs:
                 console.log(`EXTRA BOX: ${candidates.length} candidate(s), random order:`);
                 candidates.forEach((c, idx) => console.log(`  [${idx + 1}] ${c.value.substring(0, 60)}${c.value.length > 60 ? '...' : ''}`));
 
-                // Helper to compute main layout with given fonts
-                const computeMainLayout = (qf, of) => {
+                // Helper to recalc main layout for given fonts
+                const computeLayout = (qf, of) => {
                   const qLines = wrap(displayText, CARD_W - 64, qf);
                   const qLH = qf * qLineHeightMultiplier;
                   const qH = qLines.length * qLH + 24;
@@ -328,38 +327,41 @@ jobs:
                   return { qLines, qLH, oData, totalH, lastBottom, titleH, qH, signBlock, optsH };
                 };
 
-                // We'll compute the comfortable extra font based on the width (same as always)
-                const comfortableExtra = Math.min(MAX_EXTRA_FONT, Math.round(CONTENT_W * extraFontMultiplier));
-
-                // Try each candidate with proportional scaling
+                // Try each candidate
                 candidateLoop:
                 for (const candidate of candidates) {
                   console.log(`\n--- Trying: "${candidate.value}" ---`);
+                  // Start from original layout
+                  let currentQF = originalBaseLayout.qFont;
+                  let currentOF = originalBaseLayout.oFont;
 
-                  // Start with scaling factor 1.0 and go down to 0.0 (min fonts)
-                  for (let factor = 1.0; factor >= 0.0; factor -= 0.05) {
-                    // Avoid floating point issues at the end
-                    const scale = Math.max(0.0, factor);
-
-                    // Proportional fonts: linear interpolation between comfortable (max) and min
-                    const qf = Math.round(comfortableQ + (MIN_QUESTION_FONT - comfortableQ) * (1.0 - scale));
-                    const of = Math.round(comfortableO + (MIN_OPTION_FONT - comfortableO) * (1.0 - scale));
-                    const ef = Math.round(comfortableExtra + (MIN_EXTRA_FONT - comfortableExtra) * (1.0 - scale));
-
-                    const layout = computeMainLayout(qf, of);
+                  while (true) {
+                    const layout = computeLayout(currentQF, currentOF);
                     const maxExtraH = Math.max(0, EXTRA_BOTTOM - layout.lastBottom - EXTRA_MIN_GAP);
+                    console.log(`   Main fonts Q=${currentQF} O=${currentOF} => maxExtraH=${maxExtraH}px`);
 
-                    // Wrap the candidate with current extra font
-                    const lines = wrap(candidate.value, CONTENT_W - 48, ef);
-                    const lh = ef * extraLineHeightMultiplier;
-                    const boxH = Math.max(40, lines.length * lh + 24);
+                    // Try to fit extra text at various font sizes
+                    let eFont = Math.min(MAX_EXTRA_FONT, Math.round(CONTENT_W * extraFontMultiplier));
+                    let eData = null;
+                    for (let i = 0; i < 15; i++) {
+                      const lines = wrap(candidate.value, CONTENT_W - 48, eFont);
+                      const lh = eFont * extraLineHeightMultiplier;
+                      const h = Math.max(40, lines.length * lh + 24);
+                      if (h <= maxExtraH) {
+                        eData = { lines, lh, h, font: eFont };
+                        break;
+                      }
+                      if (eFont <= MIN_EXTRA_FONT) break;
+                      eFont = Math.max(MIN_EXTRA_FONT, eFont - 1);
+                    }
 
-                    if (layout.totalH <= MAX_AVAILABLE_H && boxH <= maxExtraH) {
+                    if (eData) {
                       // Fits!
-                      fittedExtraData = { lines, lh, h: boxH, font: ef, text: candidate.value };
+                      fittedExtraData = { ...eData, text: candidate.value };
+                      // Update finalBaseLayout with current main fonts and layout
                       finalBaseLayout = {
-                        qFont: qf,
-                        oFont: of,
+                        qFont: currentQF,
+                        oFont: currentOF,
                         qLines: layout.qLines,
                         qLH: layout.qLH,
                         oData: layout.oData,
@@ -369,18 +371,37 @@ jobs:
                         optsH: layout.optsH,
                         totalH: layout.totalH
                       };
+                      finalLastOptionBottom = layout.lastBottom;
                       extraBoxFitted = true;
-                      console.log(`   SUCCESS at scale=${scale.toFixed(2)}: Q=${qf}px, O=${of}px, E=${ef}px, boxH=${boxH}px, maxExtraH=${maxExtraH}px`);
+                      console.log(`   SUCCESS: fits with extra font=${eFont}px, box height=${eData.h}px`);
                       break candidateLoop;
+                    } else {
+                      console.log(`   Extra text does NOT fit even at min extra font=${MIN_EXTRA_FONT}px.`);
+                      // Try to reduce main fonts
+                      const canReduceQ = currentQF > MIN_QUESTION_FONT;
+                      const canReduceO = currentOF > MIN_OPTION_FONT;
+                      if (!canReduceQ && !canReduceO) {
+                        console.log(`   Main fonts already at minimum. Moving to next candidate.`);
+                        break; // while loop, go to next candidate
+                      }
+                      const qRoom = currentQF - MIN_QUESTION_FONT;
+                      const oRoom = currentOF - MIN_OPTION_FONT;
+                      if (qRoom > oRoom && canReduceQ) {
+                        currentQF = Math.max(MIN_QUESTION_FONT, currentQF - 2);
+                      } else if (canReduceO) {
+                        currentOF = Math.max(MIN_OPTION_FONT, currentOF - 1);
+                      } else if (canReduceQ) {
+                        currentQF = Math.max(MIN_QUESTION_FONT, currentQF - 2);
+                      }
+                      // continue while loop to test with smaller main fonts
                     }
-                  }
-
-                  console.log(`   Candidate does not fit even at scale 0.0 (all fonts at minimum).`);
-                }
+                  } // end while
+                } // end for candidates
 
                 if (!extraBoxFitted) {
-                  console.warn('\nEXTRA BOX: No candidate fits even with all fonts at minimum – skipped.');
-                  finalBaseLayout = baseLayout; // keep original
+                  console.warn('\nEXTRA BOX: No candidate fits even with main content at minimum fonts – skipped.');
+                  // Use original baseLayout untouched
+                  finalBaseLayout = originalBaseLayout;
                 }
               }
             }
