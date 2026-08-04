@@ -319,13 +319,13 @@ jobs:
               if(maxExtraH>48){
                 // ---------- Parse numbered alternatives ----------
                 // Normalize literal "\n" / "
-\n" into real whitespace first,
+                    \n" into real whitespace first,
                 // then split on numbered boundaries. Supports both:
                 //   "1. short\n2. medium\n3. long"
                 //   "1. short 2. medium 3. long"
                 //   "1. short\\n2. medium\\n3. long"
                 const normalized = extraText.replace(/\\n|
-\n?/g, ' ').replace(/\s+/g, ' ').trim();
+                      \n?/g, ' ').replace(/\s+/g, ' ').trim();
                 const alternativeMap = new Map();
                 const allMatches = [...normalized.matchAll(/(\d+)\.\s*(.+?)(?=\s*\d+\.|$)/g)];
                 if (allMatches.length >= 2) {
