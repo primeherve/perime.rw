@@ -26,7 +26,7 @@ on:
         type: string
         default: ''
       e:
-        description: 'Extra box text (yellow)'
+        description: 'Extra box text (yellow). Supports numbered alternatives: "1. short\n2. medium\n3. long". YAML randomly picks one that fits; if none fit, extra box is skipped.'
         required: false
         type: string
         default: ''
@@ -298,28 +298,62 @@ jobs:
               const maxExtraH = Math.max(0, EXTRA_BOTTOM - lastOptionBottom - EXTRA_MIN_GAP);
               
               if(maxExtraH>48){
-                let eFont = Math.min(MAX_EXTRA_FONT, Math.round(CONTENT_W*extraFontMultiplier));
-                let eData=null;
-                for(let i=0;i<15;i++){
-                  const lines=wrap(extraText, CONTENT_W-48, eFont);
-                  const lh=eFont*extraLineHeightMultiplier;
-                  const h=Math.max(56, lines.length*lh+24);
-                  if(h<=maxExtraH || eFont<=MIN_EXTRA_FONT){ 
-                    eData={lines,lh,h,font:eFont}; 
-                    break; 
-                  }
-                  eFont = Math.max(MIN_EXTRA_FONT, eFont - 1);
+                // ---------- Parse numbered alternatives ----------
+                const alternativeMap = new Map();
+                const altMatches = [...extraText.matchAll(/^(\d+)\.\s*(.+)$/gm)];
+                if (altMatches.length >= 2) {
+                  altMatches.forEach(m => alternativeMap.set(m[1], m[2].trim()));
                 }
-                if(eData){
-                  const eH = eData.h;
+                const useAlternatives = alternativeMap.size >= 2;
+
+                const candidates = [];
+                if (useAlternatives) {
+                  for (const [key, value] of alternativeMap.entries()) {
+                    candidates.push({ key, value });
+                  }
+                  // Fisher-Yates shuffle for random order
+                  for (let i = candidates.length - 1; i > 0; i--) {
+                    const j = Math.floor(Math.random() * (i + 1));
+                    [candidates[i], candidates[j]] = [candidates[j], candidates[i]];
+                  }
+                } else {
+                  candidates.push({ key: '1', value: extraText });
+                }
+
+                let fittedExtraData = null;
+                for (const candidate of candidates) {
+                  let eFont = Math.min(MAX_EXTRA_FONT, Math.round(CONTENT_W*extraFontMultiplier));
+                  let eData = null;
+                  for (let i = 0; i < 15; i++) {
+                    const lines = wrap(candidate.value, CONTENT_W - 48, eFont);
+                    const lh = eFont * extraLineHeightMultiplier;
+                    const h = Math.max(56, lines.length * lh + 24);
+                    if (h <= maxExtraH || eFont <= MIN_EXTRA_FONT) {
+                      eData = { lines, lh, h, font: eFont };
+                      break;
+                    }
+                    eFont = Math.max(MIN_EXTRA_FONT, eFont - 1);
+                  }
+                  if (eData) {
+                    fittedExtraData = { ...eData, text: candidate.value };
+                    console.log('Fitted extra box alternative:', candidate.key);
+                    break;
+                  }
+                  console.log('Skipped extra box alternative', candidate.key, 'does not fit');
+                }
+
+                if (fittedExtraData) {
+                  const eH = fittedExtraData.h;
                   const eTop = Math.round(EXTRA_BOTTOM - eH);
-                  const E=[];
+                  const E = [];
                   E.push(`<svg width="${CONTENT_W}" height="${eH}" xmlns="http://www.w3.org/2000/svg">`);
                   E.push(`<rect x="0" y="0" width="${CONTENT_W}" height="${eH}" fill="${extraBoxFill}" stroke="${extraBoxStroke}" stroke-width="${extraBoxStrokeWidth}"/>`);
-                  eData.lines.forEach((ln,li)=>E.push(`<text x="24" y="${(eH-eData.lines.length*eData.lh)/2+eData.lh*0.8+li*eData.lh}" font-family="Arial,Helvetica,sans-serif" font-size="${eData.font}" font-weight="700" fill="#000000">${escapeXml(ln)}</text>`));
+                  fittedExtraData.lines.forEach((ln, li) => E.push(`<text x="24" y="${(eH - fittedExtraData.lines.length * fittedExtraData.lh) / 2 + fittedExtraData.lh * 0.8 + li * fittedExtraData.lh}" font-family="Arial,Helvetica,sans-serif" font-size="${fittedExtraData.font}" font-weight="700" fill="#000000">${escapeXml(ln)}</text>`));
                   E.push(`</svg>`);
                   const eBuf = await sharp(Buffer.from(E.join('\n'))).png().toBuffer();
-                  composites.push({input:eBuf, left:CONTENT_LEFT, top:eTop});
+                  composites.push({ input: eBuf, left: CONTENT_LEFT, top: eTop });
+                } else {
+                  console.warn(`⚠️ Question ${qId}: All extra box alternatives too long at minimum size - skipping extra box`);
                 }
               }
             }
