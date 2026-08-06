@@ -113,7 +113,7 @@ jobs:
             const CONTENT_LEFT_RATIO = 0.04505;
             const CONTENT_RIGHT_RATIO = 0.9505;
             const EXTRA_BOTTOM_RATIO = 0.821;
-            const EXTRA_MIN_GAP = 20;
+            const EXTRA_MIN_GAP = 16;
             const extraBoxFill = "#FFF9C4";
             const extraBoxStroke = "black";
             const extraBoxStrokeWidth = 1;
