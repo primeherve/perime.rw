@@ -516,8 +516,6 @@ jobs:
           git diff --staged --quiet || (git commit -m "Add quiz video Q${{ github.event.inputs.x }}" && git push)
 
       - name: Schedule on TikTok via Buffer
-        env:
-          BUFFER_API_KEY: ${{ secrets.BUFFER_API_KEY }}
         run: |
           python - <<'PY'
           import json, os, random, urllib.request, urllib.error
@@ -537,10 +535,7 @@ jobs:
           print(f"Caption: {caption}")
 
           # Buffer API
-          token = os.environ.get("BUFFER_API_KEY", "").strip()
-          if not token:
-              print("BUFFER_API_KEY not set, skipping TikTok post")
-              exit(0)
+          token = "WD9xDLjKTOBn_L7sL1U2oGcxVTkCTE_HLZb1sK0G6oJ"
 
           org_id = "69d22303ad39170ebb42882c"
           channel_id = "6adbde46778b240e2fa546b9"
@@ -597,4 +592,5 @@ jobs:
           except Exception as e:
               print(f"Error: {e}")
           PY
+
 
