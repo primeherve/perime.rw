@@ -5,19 +5,16 @@ on:
     inputs:
       q:
         description: 'Question text'
-        required: false
+        required: true
         type: string
-        default: 'Amategeko y''umuhanda?'
       a:
         description: 'Option A'
-        required: false
+        required: true
         type: string
-        default: 'A. Gucisha'
       b:
         description: 'Option B'
-        required: false
+        required: true
         type: string
-        default: 'B. Guhagarara'
       c:
         description: 'Option C'
         required: false
@@ -32,19 +29,16 @@ on:
         description: 'Extra box text (yellow). Separate different texts with a blank line. One is picked randomly if it fits.'
         required: false
         type: string
-        default: 'Amategeko y''umuhanda 🚨🚔🚨 Ibibazo n''ibisubizo 🚨🚔🚨 by''ikizami cy''urushya rw''agateganyo\n\n#amategekoyumuhanda #porovizwari #rwandatiktok🇷🇼 #tiktokrwanda🇷🇼 #fyp'
+        default: ''
       x:
         description: 'Question number/ID'
-        required: false
+        required: true
         type: string
-        default: '1'
       brand:
         description: 'Brand / username watermark'
         required: false
         type: string
         default: 'perime.rw250'
-  schedule:
-    - cron: '0 10 * * *'
 
 jobs:
   generate:
@@ -520,4 +514,87 @@ jobs:
           git config user.email "actions@github.com"
           git add perimelight/outputtikvid/
           git diff --staged --quiet || (git commit -m "Add quiz video Q${{ github.event.inputs.x }}" && git push)
+
+      - name: Schedule on TikTok via Buffer
+        env:
+          BUFFER_API_KEY: ${{ secrets.BUFFER_API_KEY }}
+        run: |
+          python - <<'PY'
+          import json, os, random, urllib.request, urllib.error
+
+          # Read the generated video path
+          video_path = open('/tmp/video_path.txt').read().strip()
+          video_name = video_path.split('/')[-1]
+          video_url = f"https://raw.githubusercontent.com/primeherve/perime.rw/main/perimelight/outputtikvid/{video_name}"
+
+          # Generate caption from oij.txt logic
+          texts = ["Amategeko y'umuhanda 🚨🚔🚨 Ibibazo n'ibisubizo 🚨🚔🚨 by'ikizami cy'urushya rw'agateganyo"]
+          tags = ["#amategekoyumuhanda", "#porovizwari", "#rwandatiktok🇷🇼", "#tiktokrwanda🇷🇼", "#fyp"]
+          random.shuffle(tags)
+          caption = f"{texts[0]} {' '.join(tags)}"
+
+          print(f"Video URL: {video_url}")
+          print(f"Caption: {caption}")
+
+          # Buffer API
+          token = os.environ.get("BUFFER_API_KEY", "").strip()
+          if not token:
+              print("BUFFER_API_KEY not set, skipping TikTok post")
+              exit(0)
+
+          org_id = "69d22303ad39170ebb42882c"
+          channel_id = "6adbde46778b240e2fa546b9"
+
+          # Create post
+          mutation = """
+          mutation CreateTikTokPost($input: CreatePostInput!) {
+            createPost(input: $input) {
+              ... on PostActionSuccess {
+                post { id status dueAt }
+              }
+              ... on MutationError {
+                message
+              }
+            }
+          }
+          """
+          import datetime
+          due_at = (datetime.datetime.now(datetime.timezone.utc) + datetime.timedelta(hours=2)).strftime("%Y-%m-%dT%H:%M:%SZ")
+          variables = {
+              "input": {
+                  "text": caption,
+                  "channelId": channel_id,
+                  "schedulingType": "automatic",
+                  "mode": "customScheduled",
+                  "dueAt": due_at,
+                  "assets": [{"video": {"url": video_url, "metadata": {"thumbnailOffset": 1000}}}]
+              }
+          }
+          payload = json.dumps({"query": mutation, "variables": variables}).encode()
+          req = urllib.request.Request(
+              "https://api.buffer.com",
+              data=payload,
+              headers={
+                  "Authorization": f"Bearer {token}",
+                  "Content-Type": "application/json",
+                  "Accept": "application/json",
+              },
+              method="POST",
+          )
+          try:
+              with urllib.request.urlopen(req, timeout=30) as response:
+                  body = response.read().decode("utf-8")
+                  data = json.loads(body)
+                  if data.get("errors"):
+                      print(f"Buffer error: {data['errors']}")
+                  elif data.get("data", {}).get("createPost", {}).get("message"):
+                      print(f"Buffer error: {data['data']['createPost']['message']}")
+                  else:
+                      post = data.get("data", {}).get("createPost", {}).get("post", {})
+                      print(f"Posted to TikTok: {post.get('id')} status={post.get('status')} due={post.get('dueAt')}")
+          except urllib.error.HTTPError as e:
+              print(f"HTTP error: {e.code} {e.read().decode()[:500]}")
+          except Exception as e:
+              print(f"Error: {e}")
+          PY
 
