@@ -5,16 +5,19 @@ on:
     inputs:
       q:
         description: 'Question text'
-        required: true
+        required: false
         type: string
+        default: 'Amategeko y''umuhanda?'
       a:
         description: 'Option A'
-        required: true
+        required: false
         type: string
+        default: 'A. Gucisha'
       b:
         description: 'Option B'
-        required: true
+        required: false
         type: string
+        default: 'B. Guhagarara'
       c:
         description: 'Option C'
         required: false
@@ -29,16 +32,19 @@ on:
         description: 'Extra box text (yellow). Separate different texts with a blank line. One is picked randomly if it fits.'
         required: false
         type: string
-        default: ''
+        default: 'Amategeko y''umuhanda 🚨🚔🚨 Ibibazo n''ibisubizo 🚨🚔🚨 by''ikizami cy''urushya rw''agateganyo\n\n#amategekoyumuhanda #porovizwari #rwandatiktok🇷🇼 #tiktokrwanda🇷🇼 #fyp'
       x:
         description: 'Question number/ID'
-        required: true
+        required: false
         type: string
+        default: '1'
       brand:
         description: 'Brand / username watermark'
         required: false
         type: string
         default: 'perime.rw250'
+  schedule:
+    - cron: '0 10 * * *'
 
 jobs:
   generate:
@@ -514,3 +520,4 @@ jobs:
           git config user.email "actions@github.com"
           git add perimelight/outputtikvid/
           git diff --staged --quiet || (git commit -m "Add quiz video Q${{ github.event.inputs.x }}" && git push)
+
