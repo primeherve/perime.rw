@@ -513,7 +513,11 @@ jobs:
           git config user.name "GitHub Actions"
           git config user.email "actions@github.com"
           git add perimelight/outputtikvid/
-          git diff --staged --quiet || (git commit -m "Add quiz video Q${{ github.event.inputs.x }}" && git push)
+          git diff --staged --quiet || (
+            git pull --rebase origin main
+            git commit -m "Add quiz video Q${{ github.event.inputs.x }}"
+            git push
+          )
 
       - name: Schedule on TikTok via Buffer
         run: |
