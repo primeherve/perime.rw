@@ -558,7 +558,7 @@ jobs:
           import datetime
           kigali_tz = datetime.timezone(datetime.timedelta(hours=2))
           now_kigali = datetime.datetime.now(kigali_tz)
-          target = now_kigali.replace(hour=18, minute=42, second=0, microsecond=0)
+          target = now_kigali.replace(hour=19, minute=32, second=0, microsecond=0)
           if target <= now_kigali:
               target += datetime.timedelta(days=1)
           due_at = target.astimezone(datetime.timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
