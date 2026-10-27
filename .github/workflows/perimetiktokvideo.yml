@@ -512,7 +512,6 @@ jobs:
         run: |
           git config user.name "GitHub Actions"
           git config user.email "actions@github.com"
-          git add perimelight/outputtikvid/
           git pull --rebase origin main
           git add perimelight/outputtikvid/
           git diff --staged --quiet || git commit -m "Add quiz video Q${{ github.event.inputs.x }}"
